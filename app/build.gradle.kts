@@ -1,0 +1,77 @@
+plugins {
+    alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.hilt.android)
+    id("kotlin-kapt")
+    id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+android {
+    namespace = "com.example.petadopt"
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.14"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+    compileSdk = 34
+
+    defaultConfig {
+        applicationId = "com.example.petadopt"
+        minSdk = 24
+        targetSdk = 34
+    }
+}
+
+dependencies {
+    // Supabase
+    implementation(libs.supabase.core)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.storage)
+
+    // Ktor (для Supabase на Android)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.android)
+
+    // AndroidX
+    implementation(libs.core.ktx)
+    implementation(libs.activity.compose)
+    implementation(libs.navigation.compose)
+    // Lifecycle для ViewModel в Compose
+    implementation(libs.lifecycle.viewmodel.compose)
+
+    // Compose
+    implementation(libs.compose.material3)
+    implementation(libs.coil.compose)
+
+    // Coroutines
+    implementation(libs.kotlinx.coroutines.core)
+    // Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Hilt
+    implementation(libs.hilt.android)
+    kapt(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    // Tests
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.junit)
+    androidTestImplementation(libs.androidx.test.espresso)
+}
+
+kapt {
+    correctErrorTypes = true
+}

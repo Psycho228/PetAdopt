@@ -1,0 +1,89 @@
+﻿package com.example.petadopt.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.petadopt.data.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class AuthState(
+    val email: String = "",
+    val password: String = "",
+    val name: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
+@HiltViewModel
+class AuthViewModel @Inject constructor(
+    private val repo: AuthRepository
+) : ViewModel() {
+
+    private val _state = MutableStateFlow(AuthState())
+    val state: StateFlow<AuthState> = _state
+
+    val isLoggedIn: Boolean get() = repo.isLoggedIn
+
+    fun onEmailChange(value: String) = _state.update { it.copy(email = value, error = null) }
+    fun onPasswordChange(value: String) = _state.update { it.copy(password = value, error = null) }
+    fun onNameChange(value: String) = _state.update { it.copy(name = value, error = null) }
+
+    fun login(onSuccess: () -> Unit) {
+        val s = _state.value
+        if (!validate(requireName = false)) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                repo.login(email = s.email.trim(), password = s.password)
+                _state.update { it.copy(isLoading = false) }
+                onSuccess()
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    fun register(onSuccess: () -> Unit) {
+        val s = _state.value
+        if (!validate(requireName = true)) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                repo.register(
+                    email = s.email.trim(),
+                    password = s.password,
+                    name = s.name.trim()
+                )
+                _state.update { it.copy(isLoading = false) }
+                onSuccess()
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    private fun validate(requireName: Boolean): Boolean {
+        val s = _state.value
+        return when {
+            requireName && s.name.isBlank() -> {
+                _state.update { it.copy(error = "Введите имя") }
+                false
+            }
+            s.email.isBlank() || !s.email.contains("@") -> {
+                _state.update { it.copy(error = "Введите корректный email") }
+                false
+            }
+            s.password.length < 6 -> {
+                _state.update { it.copy(error = "Пароль минимум 6 символов") }
+                false
+            }
+            else -> true
+        }
+    }
+}
