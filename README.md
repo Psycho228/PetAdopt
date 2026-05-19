@@ -4,7 +4,7 @@
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-blue.svg)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Compose-1.5.0-purple.svg)](https://developer.android.com/jetpack/compose)
-[![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange.svg)](https://firebase.google.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Enabled-green.svg)](https://supabase.com)
 [![Hilt](https://img.shields.io/badge/Hilt-2.51.1-red.svg)](https://dagger.dev/hilt/)
 [![MVVM](https://img.shields.io/badge/Architecture-MVVM-green.svg)](https://developer.android.com/topic/architecture)
 
@@ -20,8 +20,8 @@ PetAdopt — это современное Android-приложение, кот�
 - 📝 **Подробный опросник** — 6 разделов, 37 вопросов для оценки готовности к питомцу
 - 📬 **Заявки на пристройство** — отправляйте заявки и отслеживайте их статус
 - 👤 **Личный кабинет** — история заявок, ответы на опросник, настройки профиля
-- 🔐 **Безопасная аутентификация** — вход через Firebase Auth (email/пароль или анонимно)
-- 🌐 **Облачные данные** — синхронизация через Firestore в реальном времени
+- 🔐 **Безопасная аутентификация** — вход через Supabase Auth (email/пароль или анонимно)
+- 🌐 **Облачные данные** — синхронизация через Supabase в реальном времени
 
 ---
 
@@ -33,7 +33,7 @@ PetAdopt — это современное Android-приложение, кот�
 | **UI** | Jetpack Compose + Material 3 |
 | **Архитектура** | MVVM + Clean Architecture |
 | **DI** | Hilt 2.51.1 |
-| **Бэкенд** | Firebase Auth + Firestore |
+| **Бэкенд** | Supabase (PostgreSQL + Auth) |
 | **Навигация** | Navigation Compose |
 | **Изображения** | Coil 2.6.0 |
 | **Асинхронность** | Kotlin Coroutines + Flow |
@@ -53,7 +53,7 @@ PetAdopt — это современное Android-приложение, кот�
 app/src/main/java/com/example/petadopt/
 ├── data/
 │   ├── model/             # Модели данных (User, Pet, Application...)
-│   └── repository/         # Репозитории (Firebase-реализация)
+│   └── repository/         # Репозитории (Supabase-реализация)
 ├── domain/
 │   ├── model/              # Доменные модели
 │   └── usecase/           # Бизнес-логика (UseCase'и)
@@ -75,16 +75,16 @@ app/src/main/java/com/example/petadopt/
 - Android Studio Hedgehog (2023.1.1) или новее
 - JDK 17
 - Android SDK 34
-- Настроенный Firebase проект (файл `google-services.json`)
+- Настроенный Supabase проект
 
 ### Быстрый старт
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/ваш-юзернейм/PetAdopt.git
+git clone https://github.com/Psycho228/PetAdopt.git
 cd PetAdopt
 
-# Создать Firebase проект и добавить google-services.json в app/
+# Создать Supabase проект и настроить подключение
 
 # Собрать debug-версию
 ./gradlew assembleDebug
@@ -96,7 +96,7 @@ cd PetAdopt
 ./gradlew clean assembleDebug
 ```
 
-> ⚠️ **Важно:** Перед первым запуском создайте Firebase проект, добавьте Android-приложение и скачайте `google-services.json` в папку `app/`.
+> ⚠️ **Важно:** Перед первым запуском создайте Supabase проект, настройте таблицы и подключите приложение через `SupabaseConfig.kt`.
 
 ---
 
@@ -116,16 +116,25 @@ cd PetAdopt
 
 ---
 
-## 📊 Структура данных (Firestore)
+## 📊 Структура данных (Supabase)
 
-### Коллекции
-| Коллекция | Описание |
-|-----------|----------|
-| `users` | Профили пользователей (uid, email, name) |
-| `pets` | Данные питомцев (имя, возраст, вид, фото, описание) |
-| `applications` | Заявки на пристройство (status: pending/approved/rejected) |
-| `questionnaire_answers` | Ответы на опросник (полная анкета хозяина) |
-| `users/{userId}/likes` | Лайки пользователя (petId, timestamp) |
+### Таблицы
+| Таблица | Описание |
+|---------|----------|
+| `users` | Профили пользователей (id, email, name, role) |
+| `pets` | Данные питомцев (name, age, type, image_url, description) |
+| `applications` | Заявки на пристройство (user_id, pet_id, status) |
+| `questionnaire_answers` | Ответы на опросник (user_id + все поля анкеты) |
+| `likes` | Лайки пользователей (user_id, pet_id, created_at) |
+
+### Статусы заявок
+- `pending` — заявка на рассмотрении
+- `approved` — заявка одобрена
+- `rejected` — заявка отклонена
+
+### Роли пользователей
+- `user` — обычный пользователь
+- `admin` — администратор приюта
 
 ---
 
@@ -145,10 +154,9 @@ cd PetAdopt
 ## 🚀 Roadmap
 
 ### В планах
-- [ ] Push-уведомления (Firebase Cloud Messaging)
+- [ ] Push-уведомления
 - [ ] Чат между приютом и пользователем
 - [ ] Фильтрация питомцев (вид, возраст, пол)
-- [ ] Firebase Analytics
 - [ ] Офлайн-режим (Room DB + WorkManager)
 - [ ] Тёмная тема (Material 3 Dynamic Color)
 - [ ] Многоязычность (ru/en)
