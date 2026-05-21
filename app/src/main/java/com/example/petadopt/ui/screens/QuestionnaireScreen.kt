@@ -214,10 +214,15 @@ fun QuestionnaireScreen(
                 .padding(20.dp)
         ) {
             // Прогресс бар
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.height(24.dp)
+            ) {
                 LinearProgressIndicator(
                     progress = { (step + 1).toFloat() / sections.size },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(8.dp),
                     color = Primary
                 )
                 Spacer(Modifier.width(12.dp))

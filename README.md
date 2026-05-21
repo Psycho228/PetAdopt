@@ -33,7 +33,8 @@ PetAdopt — это современное Android-приложение, кот�
 | **UI** | Jetpack Compose + Material 3 |
 | **Архитектура** | MVVM + Clean Architecture |
 | **DI** | Hilt 2.51.1 |
-| **Бэкенд** | Supabase (PostgreSQL + Auth) |
+| **Бэкенд** | Supabase (PostgreSQL + Auth) + S3 (reg.ru Cloud) |
+| **Загрузка фото** | AWS SDK + SigV4 подпись |
 | **Навигация** | Navigation Compose |
 | **Изображения** | Coil 2.6.0 |
 | **Асинхронность** | Kotlin Coroutines + Flow |
@@ -116,7 +117,36 @@ cd PetAdopt
 
 ---
 
+## ☁️ S3 хранилище (reg.ru Cloud)
+
+Приложение использует **S3 совместимое хранилище** для загрузки фотографий питомцев:
+
+- **Провайдер**: reg.ru Cloud Object Storage
+- **Бакет**: `pet-photos`
+- **Доступ**: Path-style URL (`https://s3.regru.cloud/pet-photos/{key}`)
+- **Авторизация**: AWS SigV4 подпись запросов
+
+### Настройка S3
+1. Создайте бакет `pet-photos` в reg.ru Cloud
+2. Настройте публичный доступ на чтение (`s3:GetObject`)
+3. Создайте Access Key с правами `s3:PutObject`, `s3:DeleteObject`
+4. Добавьте ключи в `build.gradle.kts` (или `local.properties`):
+
+```kotlin
+buildConfigField("String", "S3_ACCESS_KEY", "your_access_key")
+buildConfigField("String", "S3_SECRET_KEY", "your_secret_key")
+buildConfigField("String", "S3_BUCKET_NAME", "pet-photos")
+```
+
+### Известные проблемы и решения
+- **Ошибка 403 Forbidden** — проверьте права Access Key и политику бакета
+- **Ошибка RequestTimeTooSkewed** — время на устройстве должно быть синхронизировано (используется UTC)
+- **Дублирование фото на UI** — исправлено: `selectedImages` очищается после загрузки
+
+---
+
 ## 📊 Структура данных (Supabase)
+```
 
 ### Таблицы
 | Таблица | Описание |
@@ -152,6 +182,12 @@ cd PetAdopt
 ---
 
 ## 🚀 Roadmap
+
+### Реализовано
+- [x] S3 загрузка фото с SigV4 подписью
+- [x] Редактирование питомцев с существующими фото
+- [x] Удаление фото при редактировании
+- [x] Исправление дублирования фото на UI
 
 ### В планах
 - [ ] Push-уведомления

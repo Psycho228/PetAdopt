@@ -1,17 +1,21 @@
 package com.example.petadopt.data.model
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Application(
-    val id: String = "",
-    val user_id: String = "",
-    val user_name: String = "",
-    val user_email: String = "",
-    val pet_id: String = "",
-    val pet_name: String = "",
-    val message: String = "",
-    val contact_time: String = "",
-    val status: String = "pending", // pending, approved, rejected
-    val created_at: Long = System.currentTimeMillis(),
-    val updated_at: Long = System.currentTimeMillis()
+    @SerialName("id") val id: String = "",
+    @SerialName("user_id") val user_id: String = "",
+    @SerialName("user_name") val user_name: String = "",
+    @SerialName("user_email") val user_email: String = "",
+    @SerialName("pet_id") val pet_id: String = "",
+    @SerialName("pet_name") val pet_name: String = "",
+    @SerialName("message") val message: String = "",
+    @SerialName("contact_time") val contact_time: String = "",
+    @SerialName("status") val status: String = "pending",
+    @SerialName("created_at") val created_at: String? = null,
+    @SerialName("updated_at") val updated_at: String? = null
 ) {
     // Удобные свойства для совместимости со старым кодом
     val userId: String get() = user_id
@@ -20,5 +24,8 @@ data class Application(
     val petId: String get() = pet_id
     val petName: String get() = pet_name
     val contactTime: String get() = contact_time
-    val timestamp: Long get() = created_at
+    val timestamp: Long get() = runCatching {
+        // Пробуем parse как ISO строку (от Supabase), иначе как Unix timestamp
+        java.time.Instant.parse(created_at).toEpochMilli()
+    }.getOrNull() ?: runCatching { created_at?.toLongOrNull() }.getOrNull() ?: 0L
 }

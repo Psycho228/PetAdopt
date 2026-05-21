@@ -5,10 +5,10 @@ import com.example.petadopt.data.repository.AuthRepository
 import com.example.petadopt.data.repository.PetRepository
 import com.example.petadopt.data.repository.QuestionnaireRepository
 import com.example.petadopt.data.repository.StorageRepository
+import com.example.petadopt.data.repository.S3StorageRepository
 import com.example.petadopt.data.repository.SupabaseAuthRepository
 import com.example.petadopt.data.repository.SupabasePetRepository
 import com.example.petadopt.data.repository.SupabaseQuestionnaireRepository
-import com.example.petadopt.data.repository.SupabaseStorageRepository
 import com.example.petadopt.domain.usecase.*
 import dagger.Module
 import dagger.Provides
@@ -55,7 +55,7 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideStorageRepository(
-        storageRepository: SupabaseStorageRepository
+        storageRepository: S3StorageRepository
     ): StorageRepository {
         return storageRepository
     }

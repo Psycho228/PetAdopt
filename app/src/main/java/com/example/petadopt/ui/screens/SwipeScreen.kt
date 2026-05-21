@@ -30,7 +30,7 @@ import com.example.petadopt.viewmodel.AccountViewModel
 
 @Composable
 fun SwipeScreen(
-    onDetails: () -> Unit,
+    onDetails: (String) -> Unit,
     onMatches: () -> Unit,
     onAccount: () -> Unit,
     onLogout: () -> Unit,
@@ -42,9 +42,13 @@ fun SwipeScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val currentPet = pets.getOrNull(currentIndex)
-    val imageUrl = currentPet?.imageUrl?.ifEmpty {
-        "https://via.placeholder.com/300"
-    } ?: "https://via.placeholder.com/300"
+    
+    // Объединяем основное фото и дополнительные, фильтруем пустые строки
+    val allImages = remember(currentPet?.imageUrl, currentPet?.images) {
+        listOfNotNull(currentPet?.imageUrl?.takeIf { it.isNotBlank() }) + 
+        currentPet?.images?.filter { it.isNotBlank() }.orEmpty()
+    }
+    val displayImage = allImages.firstOrNull() ?: "https://via.placeholder.com/300"
 
     LaunchedEffect(Unit) {
         viewModel.loadPets()
@@ -104,7 +108,7 @@ fun SwipeScreen(
                         name = currentPet.name,
                         age = currentPet.age.toString(),
                         description = currentPet.description,
-                        imageUrl = imageUrl,
+                        imageUrl = displayImage,
                         offsetX = offsetX
                     )
                 }
@@ -148,11 +152,9 @@ fun SwipeScreen(
 
         if (currentPet != null) {
             BottomActions(
-                onDetails = {
-                    currentPet?.let { viewModel.selectPet(it) }
-                    onDetails()
-                },
-                onMatches = onMatches
+                onDetails = { petId -> onDetails(petId) },
+                onMatches = onMatches,
+                currentPetId = currentPet.id
             )
         }
 
@@ -179,7 +181,7 @@ private fun TopBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "PetAdopt",
+                text = "Хвостики",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = Primary
@@ -251,8 +253,9 @@ private fun ProgressCounter(currentIndex: Int, total: Int) {
 
 @Composable
 private fun BottomActions(
-    onDetails: () -> Unit,
-    onMatches: () -> Unit
+    onDetails: (String) -> Unit,
+    onMatches: () -> Unit,
+    currentPetId: String
 ) {
     Column(
         modifier = Modifier
@@ -261,7 +264,7 @@ private fun BottomActions(
     ) {
         PrimaryButton(
             text = "Подробнее о питомце",
-            onClick = onDetails
+            onClick = { onDetails(currentPetId) }
         )
 
         Spacer(Modifier.height(10.dp))

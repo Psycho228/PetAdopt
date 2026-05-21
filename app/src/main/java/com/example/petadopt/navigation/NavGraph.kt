@@ -107,7 +107,7 @@ fun NavGraph() {
 
         composable("swipe") {
             SwipeScreen(
-                onDetails = { navController.navigate("details") },
+                onDetails = { petId -> navController.navigate("details/$petId") },
                 onMatches = { navController.navigate("matches") },
                 onAccount = { navController.navigate("account") },
                 onLogout = {
@@ -118,11 +118,13 @@ fun NavGraph() {
             )
         }
 
-        composable("details") {
+        composable("details/{petId}") { backStackEntry ->
+            val petId = backStackEntry.arguments?.getString("petId") ?: ""
             DetailsScreen(
                 navController = navController,
                 onBack = { navController.popBackStack() },
-                onAccount = { navController.navigate("account") }
+                onAccount = { navController.navigate("account") },
+                petId = petId
             )
         }
 
@@ -173,7 +175,8 @@ fun NavGraph() {
             DetailsScreen(
                 navController = navController,
                 onBack = { navController.popBackStack() },
-                onAccount = { navController.navigate("account") }
+                onAccount = { navController.navigate("account") },
+                petId = petId
             )
         }
 

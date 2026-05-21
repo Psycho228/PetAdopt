@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +38,7 @@ import coil.request.ImageRequest
 import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.*
 import com.example.petadopt.viewmodel.SwipeViewModel
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 // Функция для правильного склонения слова "год/года/лет"
@@ -58,9 +60,17 @@ fun DetailsScreen(
     navController: NavHostController,
     onBack: () -> Unit,
     onAccount: () -> Unit,
+    petId: String? = null,
     viewModel: SwipeViewModel = hiltViewModel()
 ) {
     val pet by viewModel.selectedPet.collectAsState()
+
+    // Загружаем питомца если передан petId и нет выбранного питомца
+    LaunchedEffect(petId) {
+        if (petId != null && pet == null) {
+            viewModel.loadPetById(petId)
+        }
+    }
 
     if (pet == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -80,7 +90,15 @@ fun DetailsScreen(
     val allImages = remember(p.imageUrl, p.images) {
         listOfNotNull(p.imageUrl.takeIf { it.isNotBlank() }) + p.images.filter { it.isNotBlank() }
     }
-    val pagerState = rememberPagerState(pageCount = { allImages.size })
+    
+    // Fallback если все изображения пустые
+    val displayImages = if (allImages.isEmpty()) {
+        listOf("https://via.placeholder.com/400")
+    } else {
+        allImages
+    }
+    
+    val pagerState = rememberPagerState(pageCount = { displayImages.size })
     
     // Анимация для кнопки назад
     val buttonScale = animateFloatAsState(
@@ -96,31 +114,45 @@ fun DetailsScreen(
     ) {
         // Фото с пагинацией
         Box(modifier = Modifier.fillMaxWidth().height(360.dp)) {
-            if (allImages.isNotEmpty()) {
+            if (displayImages.isNotEmpty()) {
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
                 ) { page ->
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(allImages[page])
+                            .data(displayImages[page])
                             .crossfade(true)
                             .build(),
-                        contentDescription = "${p.name} - фото ${page + 1}",
+                        contentDescription = "Фото ${page + 1}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-            } else {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(p.imageUrl.ifEmpty { "https://via.placeholder.com/300" })
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = p.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+            }
+
+            if (displayImages.size > 1) {
+                // Индикаторы страниц (точки)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    repeat(displayImages.size) { index ->
+                        Box(
+                            modifier = Modifier
+                                .padding(4.dp)
+                                .size(8.dp)
+                                .background(
+                                    color = if (pagerState.currentPage == index) Primary else Color.Gray.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
             }
 
             // Градиент для лучшей читаемости текста
@@ -140,28 +172,6 @@ fun DetailsScreen(
                         )
                     )
             )
-
-            // Индикатор страниц
-            if (allImages.size > 1) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    repeat(allImages.size) { index ->
-                        val isSelected = pagerState.currentPage == index
-                        Box(
-                            modifier = Modifier
-                                .size(if (isSelected) 10.dp else 8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isSelected) Color.White else Color.White.copy(alpha = 0.5f)
-                                )
-                        )
-                    }
-                }
-            }
 
             // Верхняя панель с кнопками
             Row(

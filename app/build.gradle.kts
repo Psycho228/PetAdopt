@@ -11,6 +11,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     composeOptions {
@@ -31,10 +32,18 @@ android {
         applicationId = "com.example.petadopt"
         minSdk = 24
         targetSdk = 34
+
+        // S3 конфигурация (временно вшиты для проверки)
+        buildConfigField("String", "S3_ACCESS_KEY", "\"N8Z0ZYU4W3IHSGZKBBN5\"")
+        buildConfigField("String", "S3_SECRET_KEY", "\"Yu7Z54MtphmMqXB0zOZSIaqWYCphil1gXOyywWKm\"")
+        buildConfigField("String", "S3_BUCKET_NAME", "\"pet-photos\"")
     }
 }
 
 dependencies {
+    // AWS SDK for S3
+    implementation(libs.aws.sdk.s3)
+
     // Supabase
     implementation(libs.supabase.core)
     implementation(libs.supabase.postgrest)

@@ -59,6 +59,10 @@ CREATE TABLE IF NOT EXISTS public.applications (
     pet_id UUID NOT NULL REFERENCES public.pets(id) ON DELETE CASCADE,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     message TEXT,
+    user_name TEXT,
+    user_email TEXT,
+    pet_name TEXT,
+    contact_time TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     UNIQUE(user_id, pet_id)

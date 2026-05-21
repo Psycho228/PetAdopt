@@ -12,6 +12,26 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// Мапинг русских значений типа жилья в английские для БД
+private val housingTypeMap = mapOf(
+    "Квартира" to "apartment",
+    "Частный дом" to "house",
+    "Съёмное жильё" to "rented",
+    "Другое" to "other"
+)
+
+// Обратный мапинг для валидации
+private val validHousingTypes = setOf("apartment", "house", "rented", "other")
+
+private fun mapHousingTypeToDb(value: String): String {
+    // Если уже английское значение — проверяем валидность
+    if (value in validHousingTypes) {
+        return value
+    }
+    // Пытаемся перевести руское значение
+    return housingTypeMap[value] ?: "other"
+}
+
 @HiltViewModel
 class QuestionnaireViewModel @Inject constructor(
     private val repository: QuestionnaireRepository,
@@ -117,7 +137,7 @@ class QuestionnaireViewModel @Inject constructor(
                 q1_city = _state.value.q1_city,
                 q1_occupation = _state.value.q1_occupation,
                 q1_contact_method = _state.value.q1_contact_method,
-                q2_housing_type = _state.value.q2_housing_type,
+                q2_housing_type = mapHousingTypeToDb(_state.value.q2_housing_type),
                 q2_pets_allowed = _state.value.q2_pets_allowed.toBooleanStrictOrNull(),
                 q2_living_with = _state.value.q2_living_with.split(",").map { it.trim() }.filter { it.isNotEmpty() },
                 q2_family_consent = _state.value.q2_family_consent.toBooleanStrictOrNull(),

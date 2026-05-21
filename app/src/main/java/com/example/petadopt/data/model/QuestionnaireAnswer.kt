@@ -1,5 +1,8 @@
 package com.example.petadopt.data.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class QuestionnaireAnswer(
     val id: String = "",
     val user_id: String = "",
@@ -63,8 +66,8 @@ data class QuestionnaireAnswer(
     val q6_life_with_pet_vision: String = "",
     val q6_why_good_owner: String = "",
     
-    val created_at: Long = System.currentTimeMillis(),
-    val updated_at: Long = System.currentTimeMillis()
+    val created_at: String = "",
+    val updated_at: String = ""
 )
 
 // Удобные расширения для доступа к данным

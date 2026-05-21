@@ -106,7 +106,7 @@ class ApplicationViewModel @Inject constructor(
                     message = message,
                     contact_time = contactTime,
                     status = "pending",
-                    created_at = System.currentTimeMillis()
+                    created_at = java.time.Instant.now().toString()
                 )
 
                 petRepository.submitApplication(application)

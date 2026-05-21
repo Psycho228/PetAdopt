@@ -31,7 +31,6 @@ class SupabaseQuestionnaireRepository @Inject constructor(
         
         try {
             val answerData = buildJsonObject {
-                put("id", java.util.UUID.randomUUID().toString())
                 put("user_id", uid)
                 // Раздел 1
                 put("q1_full_name", answer.q1_full_name)
@@ -88,9 +87,21 @@ class SupabaseQuestionnaireRepository @Inject constructor(
                 put("q6_why_good_owner", answer.q6_why_good_owner)
             }
             
-            postgrest.from(TABLE_QUESTIONNAIRE).upsert(answerData)
+            // Проверяем, есть ли уже запись для этого пользователя
+            val existing = postgrest.from(TABLE_QUESTIONNAIRE)
+                .select { filter { eq("user_id", uid) } }
+                .decodeSingleOrNull<QuestionnaireAnswer>()
             
-            Log.d(TAG, "Questionnaire saved for user: $uid")
+            if (existing != null) {
+                // Обновляем существующую запись
+                postgrest.from(TABLE_QUESTIONNAIRE)
+                    .update(answerData) { filter { eq("user_id", uid) } }
+                Log.d(TAG, "Questionnaire updated for user: $uid")
+            } else {
+                // Создаём новую запись
+                postgrest.from(TABLE_QUESTIONNAIRE).insert(answerData)
+                Log.d(TAG, "Questionnaire inserted for user: $uid")
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error saving questionnaire: ${e.message}")
             throw Exception("Ошибка сохранения опросника: ${e.message}")
@@ -98,19 +109,37 @@ class SupabaseQuestionnaireRepository @Inject constructor(
     }
 
     override suspend fun getAnswers(): QuestionnaireAnswer? {
-        val uid = currentUserId ?: return null
+        val uid = currentUserId
+        Log.d(TAG, "getAnswers: currentUserId = $uid")
+        if (uid == null) {
+            Log.d(TAG, "getAnswers: user not authenticated")
+            return null
+        }
         
         return try {
-            val result = postgrest.from(TABLE_QUESTIONNAIRE)
-                .select {
-                    filter { eq("user_id", uid) }
-                }
-                .decodeSingleOrNull<QuestionnaireAnswer>()
+            Log.d(TAG, "getAnswers: querying for user_id = $uid")
             
-            Log.d(TAG, "Questionnaire loaded for user: $uid")
+            // Получаем записи и фильтруем на клиенте
+            val response = postgrest.from(TABLE_QUESTIONNAIRE)
+                .select()
+            
+            Log.d(TAG, "Raw response: ${response.data}")
+            
+            // Декодируем как список и фильтруем по user_id
+            val results = response.decodeList<QuestionnaireAnswer>()
+            Log.d(TAG, "Decoded ${results.size} records")
+            
+            val result = results.firstOrNull { it.user_id == uid }
+            Log.d(TAG, "Filtered result: ${result?.user_id}, expected: $uid, match: ${result?.user_id == uid}")
+            
+            Log.d(TAG, "Questionnaire loaded for user: $uid, result = ${result != null}")
+            if (result != null) {
+                Log.d(TAG, "Questionnaire data: q1_full_name = ${result.q1_full_name}, user_id = ${result.user_id}")
+            }
             result
         } catch (e: Exception) {
             Log.e(TAG, "Error getting questionnaire: ${e.message}")
+            e.printStackTrace()
             null
         }
     }

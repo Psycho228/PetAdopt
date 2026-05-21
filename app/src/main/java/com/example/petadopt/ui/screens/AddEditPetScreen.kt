@@ -47,6 +47,16 @@ fun AddEditPetScreen(
     val scrollState = rememberScrollState()
     
     var isEditing by remember { mutableStateOf(petId != null) }
+    
+    // Список выбранных изображений (новые, ещё не загруженные)
+    var selectedImages by remember { mutableStateOf(listOf<android.net.Uri>()) }
+    
+    // Получаем все изображения из ViewModel (существующие + новые загруженные)
+    val allImageUrls = remember(uiState.existingImageUrls, uiState.uploadedImages) {
+        uiState.existingImageUrls + uiState.uploadedImages
+    }
+    
+    // Инициализация значений по умолчанию
     var petName by remember { mutableStateOf("") }
     var petAge by remember { mutableStateOf("") }
     var petAgeYears by remember { mutableStateOf(0) }
@@ -66,8 +76,34 @@ fun AddEditPetScreen(
     var goodWithKids by remember { mutableStateOf(true) }
     var goodWithPets by remember { mutableStateOf(true) }
     
-    // Список выбранных изображений
-    var selectedImages by remember { mutableStateOf(listOf<android.net.Uri>()) }
+    // Загрузка данных питомца при редактировании
+    LaunchedEffect(petId) {
+        if (petId != null) {
+            viewModel.loadPetById(petId)
+        }
+    }
+    
+    // Применение загруженных данных к полям
+    LaunchedEffect(uiState.currentPet) {
+        val pet = uiState.currentPet ?: return@LaunchedEffect
+        petName = pet.name
+        petAge = pet.age.toString()
+        petType = pet.type
+        petGender = pet.gender ?: Pet.GENDER_MALE
+        petSize = pet.size ?: Pet.SIZE_MEDIUM
+        petBreed = pet.breed ?: ""
+        petColor = pet.color ?: ""
+        petDescription = pet.description ?: ""
+        petLocation = "" // Не хранится в модели Pet
+        petShelterName = "" // Не хранится в модели Pet
+        petShelterContact = "" // Не хранится в модели Pet
+        petEnergyLevel = "medium" // Не хранится в модели Pet
+        isVaccinated = pet.has_vaccination
+        isSterilized = pet.is_neutered
+        isHouseTrained = false // Не хранится в модели Pet
+        goodWithKids = true // Не хранится в модели Pet
+        goodWithPets = true // Не хранится в модели Pet
+    }
 
     // Launcher для выбора изображений
     val imagePickerLauncher = rememberLauncherForActivityResult(
@@ -82,7 +118,8 @@ fun AddEditPetScreen(
     // Обработка успешной загрузки изображений
     LaunchedEffect(uiState.uploadedImages) {
         if (uiState.uploadedImages.isNotEmpty()) {
-            // Обновляем список отображаемых URL
+            // Очищаем выбранные изображения после загрузки
+            selectedImages = emptyList()
             delay(100)
         }
     }
@@ -91,13 +128,16 @@ fun AddEditPetScreen(
     LaunchedEffect(uiState.isSaveSuccessful) {
         if (uiState.isSaveSuccessful) {
             delay(500)
+            viewModel.clearCurrentPet()
             navController.popBackStack()
         }
     }
-
-    // Получаем все загруженные изображения (основное + дополнительные)
-    val allImageUrls = remember(uiState.uploadedImages) {
-        uiState.uploadedImages
+    
+    // Очистка данных при выходе со экрана
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.clearCurrentPet()
+        }
     }
 
     Scaffold(
@@ -233,9 +273,11 @@ fun AddEditPetScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(intrinsicSize = IntrinsicSize.Min)
+                        .height(200.dp)
                 ) {
-                    items(allImageUrls) { url ->
+                    // Существующие фото с сервера
+                    items(uiState.existingImageUrls) { url ->
+                        val index = uiState.existingImageUrls.indexOf(url)
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -248,9 +290,64 @@ fun AddEditPetScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
+                            // Кнопка удаления
+                            IconButton(
+                                onClick = { 
+                                    viewModel.removeImage(index)
+                                    viewModel.deleteImageFromServer(url)
+                                },
+                                modifier = Modifier
+                                    .align(androidx.compose.ui.Alignment.TopEnd)
+                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "Удалить",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
+                    // Новые загруженные фото
+                    items(uiState.uploadedImages) { url ->
+                        val index = uiState.existingImageUrls.size + uiState.uploadedImages.indexOf(url)
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(1.dp, Color.Gray.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        ) {
+                            AsyncImage(
+                                model = url,
+                                contentDescription = "Фото питомца",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                            // Кнопка удаления
+                            IconButton(
+                                onClick = { 
+                                    viewModel.removeImage(index)
+                                    viewModel.deleteImageFromServer(url)
+                                },
+                                modifier = Modifier
+                                    .align(androidx.compose.ui.Alignment.TopEnd)
+                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "Удалить",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                    // Новые выбранные фото (ещё не загружены)
                     items(selectedImages) { uri ->
+                        val index = uiState.existingImageUrls.size + uiState.uploadedImages.size + selectedImages.indexOf(uri)
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -263,6 +360,25 @@ fun AddEditPetScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                             )
+                            // Кнопка удаления
+                            IconButton(
+                                onClick = { 
+                                    viewModel.removeImage(index)
+                                    val indexToRemove = selectedImages.indexOf(uri)
+                                    selectedImages = selectedImages.filterIndexed { i, _ -> i != indexToRemove }
+                                },
+                                modifier = Modifier
+                                    .align(androidx.compose.ui.Alignment.TopEnd)
+                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "Удалить",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                     
@@ -413,8 +529,11 @@ fun AddEditPetScreen(
 
                 Button(
                     onClick = {
-                        // Основное изображение - первое из загруженных или пустая строка
-                        val mainImageUrl = allImageUrls.firstOrNull() ?: selectedImages.firstOrNull()?.toString() ?: ""
+                        // Основное изображение - первое из всех доступных
+                        val mainImageUrl = allImageUrls.firstOrNull() ?: ""
+                        
+                        // Дополнительные фото - все остальные
+                        val additionalPhotos = allImageUrls.drop(1).filter { it.isNotBlank() }
                         
                         val pet = Pet(
                             id = petId ?: "",
@@ -428,7 +547,7 @@ fun AddEditPetScreen(
                             color = petColor,
                             description = petDescription,
                             photo_url = mainImageUrl,
-                            additional_photos = allImageUrls.drop(1).map { it.toString() } + selectedImages.drop(1).map { it.toString() },
+                            additional_photos = additionalPhotos,
                             is_neutered = isSterilized,
                             has_vaccination = isVaccinated,
                             weight = null,

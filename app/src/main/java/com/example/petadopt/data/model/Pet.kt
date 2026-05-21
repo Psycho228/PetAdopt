@@ -1,24 +1,28 @@
 package com.example.petadopt.data.model
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
 data class Pet(
-    val id: String = "",
-    val shelter_id: String = "",
-    val name: String = "",
-    val age: Int = 0,
-    val type: String = "cat",
-    val gender: String = "male",
-    val size: String = "medium",
-    val description: String = "",
-    val photo_url: String = "",
-    val additional_photos: List<String> = emptyList(),
-    val breed: String = "",
-    val color: String = "",
-    val weight: Double? = null,
-    val is_neutered: Boolean = false,
-    val has_vaccination: Boolean = false,
-    val is_active: Boolean = true,
-    val created_at: String? = null,
-    val updated_at: String? = null
+    @SerialName("id") val id: String = "",
+    @SerialName("shelter_id") val shelter_id: String = "",
+    @SerialName("name") val name: String = "",
+    @SerialName("age") val age: Int = 0,
+    @SerialName("type") val type: String = "cat",
+    @SerialName("gender") val gender: String = "male",
+    @SerialName("size") val size: String = "medium",
+    @SerialName("description") val description: String = "",
+    @SerialName("photo_url") val photo_url: String = "",
+    @SerialName("additional_photos") val additional_photos: List<String> = emptyList(),
+    @SerialName("breed") val breed: String = "",
+    @SerialName("color") val color: String = "",
+    @SerialName("weight") val weight: Double? = null,
+    @SerialName("is_neutered") val is_neutered: Boolean = false,
+    @SerialName("has_vaccination") val has_vaccination: Boolean = false,
+    @SerialName("is_active") val is_active: Boolean = true,
+    @SerialName("created_at") val created_at: String? = null,
+    @SerialName("updated_at") val updated_at: String? = null
 ) {
     // Удобные свойства для отображения (совместимость со старым кодом)
     val imageUrl: String get() = photo_url
