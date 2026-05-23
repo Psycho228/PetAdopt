@@ -59,18 +59,16 @@ val QuestionnaireAnswer.reasonNow: String get() = q3_why_now.ifBlank { "—" }
 
 val QuestionnaireAnswer.understandsNeeds: List<String> get() {
     val list = mutableListOf<String>()
-    if (q4_understand_requirements) list.add("Требования")
-    if (q4_understand_time) list.add("Время")
+    if (q4_understand_requirements) list.add("Время")
     if (q4_understand_attention) list.add("Внимание")
     if (q4_understand_training) list.add("Обучение")
-    if (q4_understand_vet_care) list.add("Ветпомощь")
+    if (q4_understand_vet_care) list.add("Ветеринарная помощь")
     return list.ifEmpty { listOf("—") }
 }
 val QuestionnaireAnswer.readyForExpenses: List<String> get() {
     val list = mutableListOf<String>()
-    if (q4_ready_expenses) list.add("Расходы")
     if (q4_ready_food) list.add("Корм")
-    if (q4_ready_vet) list.add("Ветеринар")
+    if (q4_ready_vet) list.add("Ветеринара")
     if (q4_ready_medication) list.add("Лекарства")
     if (q4_ready_vaccinations) list.add("Прививки")
     if (q4_ready_grooming) list.add("Груминг")
@@ -89,13 +87,13 @@ val QuestionnaireAnswer.lifeChanges: String get() = q4_life_changes_plan.ifBlank
 val QuestionnaireAnswer.obstacles: String get() = q4_obstacles_next_year.ifBlank { "—" }
 
 val QuestionnaireAnswer.safetyMeasures: List<String> get() = q5_safety_measures.ifEmpty { listOf("—") }
-val QuestionnaireAnswer.willingTo: List<String> get() {
-    val list = mutableListOf<String>()
-    if (q5_ready_neuter) list.add("Стерилизация")
-    if (q5_ready_recommendations) list.add("Рекомендации")
-    if (q5_ready_tracker) list.add("Адресник")
-    return list.ifEmpty { listOf("—") }
-}
+val QuestionnaireAnswer.willingTo: List<String> 
+    get() = buildList {
+        if (q5_ready_neuter) add("Стерилизовать/кастрировать питомца")
+        if (q5_ready_recommendations) add("Соблюдать рекомендации приюта")
+        if (q5_ready_tracker) add("Использовать адресник/чип")
+        if (q5_ready_keep_contact) add("Поддерживать связь с приютом")
+    }
 val QuestionnaireAnswer.maintainContact: String get() = when (q5_ready_keep_contact) {
     true -> "Да"
     false -> "Нет"

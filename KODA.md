@@ -2,14 +2,17 @@
 
 ## 📱 Обзор проекта
 
-**PetAdopt** — мобильное приложение для пристройства питомцев из приютов. Реализовано с использованием современной Android-архитектуры (MVVM + Clean Architecture) и Firebase бэкенда.
+**PetAdopt** — мобильное приложение для пристройства питомцев из приютов. Реализовано с использованием современной Android-архитектуры (MVVM + Clean Architecture) и Supabase бэкенда.
 
 ### Основные функции
 - **Свайп-механика** — поиск питомцев по принципу Tinder (лайк/дизлайк)
 - **Заявки** — подача заявок на пристройство питомца с отслеживанием статуса
 - **Опросник** — детальная анкета потенциального хозяина (6 разделов, 37 вопросов)
 - **Профиль** — управление личными данными, просмотр истории заявок и ответов на опросник
-- **Firebase** — аутентификация и хранение данных в Firestore
+- **Админ-панель** — управление питомцами (добавление, редактирование) для приютов
+- **Supabase** — аутентификация, PostgreSQL база данных и S3 хранилище
+- **S3 (reg.ru Cloud)** — загрузка фотографий питомцев с SigV4 подписью
+- **GigaChat** — оценка рисков при подаче заявок
 
 ## 🛠 Стек технологий
 
@@ -18,11 +21,13 @@
 | Язык | Kotlin 1.9.24 |
 | UI | Jetpack Compose + Material 3 |
 | Архитектура | MVVM + Clean Architecture |
-| DI | Hilt 2.51.1 |
-| Бэкенд | Firebase Auth + Firestore |
+| DI | Hilt 2.51.1 (kapt) |
+| Бэкенд | Supabase (PostgreSQL + Auth + Storage) |
+| S3 Хранилище | AWS SDK for Kotlin + SigV4 подпись |
+| GigaChat | Ktor Client + yandex-cloud SDK |
 | Навигация | Navigation Compose |
 | Картинки | Coil 2.6.0 |
-| Сборка | Gradle 8.13 + AGP 8.13.2 |
+| Сборка | Gradle 8.13 + AGP 8.2.2 |
 | Мин SDK | 24 (Android 7.0) |
 | Целевой SDK | 34 (Android 14) |
 
@@ -31,42 +36,77 @@
 ```
 app/src/main/java/com/example/petadopt/
 ├── data/
-│   ├── model/              # Модели данных (User, Pet, Application, QuestionnaireAnswer)
-│   └── repository/         # Репозитории (PetRepository, AuthRepository, QuestionnaireRepository)
+│   ├── model/              # Модели данных
+│   │   ├── Application.kt
+│   │   ├── GigaChatRiskAssessment.kt
+│   │   ├── Pet.kt
+│   │   ├── QuestionnaireAnswer.kt
+│   │   ├── QuestionnaireAnswerExtensions.kt
+│   │   ├── RiskAssessmentRecord.kt
+│   │   └── User.kt
+│   └── repository/         # Репозитории
+│       ├── AdminRepository.kt
+│       ├── AuthRepository.kt
+│       ├── GigaChatRepository.kt
+│       ├── PetRepository.kt
+│       ├── QuestionnaireRepository.kt
+│       ├── S3StorageRepository.kt
+│       ├── StorageRepository.kt
+│       ├── SupabaseAuthRepository.kt
+│       ├── SupabasePetRepository.kt
+│       ├── SupabaseQuestionnaireRepository.kt
+│       └── SupabaseStorageRepository.kt
 ├── domain/
-│   ├── usecase/            # Бизнес-логика (UseCase'и)
-│   │   ├── AuthUseCases.kt      (Login, Register, Logout, GetUser...)
-│   │   ├── PetUseCases.kt       (GetPets, SubmitApplication, LikePet...)
-│   │   └── QuestionnaireUseCases.kt (SaveQuestionnaire, GetQuestionnaire...)
+│   ├── model/              # Доменные модели
+│   └── usecase/            # Бизнес-логика (UseCase'и)
+│       ├── AdditionalPetUseCases.kt
+│       ├── AdminUseCases.kt
+│       ├── AuthUseCases.kt
+│       ├── GetLikedPetsUseCase.kt
+│       ├── PetUseCases.kt
+│       ├── QuestionnaireUseCases.kt
+│       ├── RiskAssessmentDataUseCases.kt
+│       ├── RiskAssessmentUseCases.kt
+│       └── StorageUseCases.kt
 ├── di/
-│   ├── AppModule.kt        # Firebase зависимости
+│   ├── AppModule.kt        # Supabase/Firebase зависимости
 │   └── RepositoryModule.kt # Провизоры репозиториев и UseCase'ов
 ├── navigation/
 │   └── NavGraph.kt         # Настройка навигации и routes
 ├── ui/
 │   ├── components/         # Переиспользуемые UI компоненты
+│   │   ├── PetCard.kt
 │   │   ├── PrimaryButton.kt
+│   │   ├── RiskAssessmentCard.kt
 │   │   ├── Screen.kt
-│   │   ├── SwipeCard.kt
-│   │   └── PetCard.kt
+│   │   └── SwipeCard.kt
 │   ├── screens/            # Экраны приложения
-│   │   ├── AuthScreen.kt
-│   │   ├── OnboardingScreen.kt
-│   │   ├── QuestionnaireScreen.kt
-│   │   ├── SwipeScreen.kt
-│   │   ├── DetailsScreen.kt
+│   │   ├── AccountScreen.kt
+│   │   ├── AddEditPetScreen.kt
+│   │   ├── AdminScreen.kt
 │   │   ├── ApplicationScreen.kt
 │   │   ├── ApplicationsScreen.kt
-│   │   └── AccountScreen.kt
+│   │   ├── AuthScreen.kt
+│   │   ├── DetailsScreen.kt
+│   │   ├── EditProfileScreen.kt
+│   │   ├── MatchesScreen.kt
+│   │   ├── OnboardingScreen.kt
+│   │   ├── QuestionnaireScreen.kt
+│   │   └── SwipeScreen.kt
 │   └── theme/
 │       ├── Color.kt
 │       ├── Theme.kt
 │       └── Type.kt
 ├── viewmodel/              # ViewModels для каждого экрана
 │   ├── AccountViewModel.kt
-│   ├── SwipeViewModel.kt
+│   ├── AdminViewModel.kt
+│   ├── ApplicationsViewModel.kt
 │   ├── ApplicationViewModel.kt
-│   └── QuestionnaireViewModel.kt
+│   ├── AuthViewModel.kt
+│   ├── NavViewModel.kt
+│   ├── QuestionnaireState.kt
+│   ├── QuestionnaireViewModel.kt
+│   └── SwipeViewModel.kt
 └── util/                   # Утилиты и расширения
 ```
 
@@ -91,18 +131,23 @@ app/src/main/java/com/example/petadopt/
 - Android Studio Hedgehog (2023.1.1) или новее
 - JDK 17
 - Android SDK 34
-- Настроенный Firebase проект с файлом `google-services.json` в `app/`
+- Настроенный Supabase проект
 
-## 🔥 Firebase конфигурация
+## 🔧 Supabase конфигурация
 
-### Коллекции Firestore
-| Коллекция | Описание |
-|-----------|----------|
-| `users` | Профили пользователей (uid, email, name) |
+### Коллекции (таблицы)
+| Таблица | Описание |
+|---------|----------|
+| `users` | Профили пользователей (id, email, name, role) |
 | `pets` | Данные питомцев (имя, возраст, вид, описание, фото) |
 | `applications` | Заявки на пристройство (userId, petId, status, timestamp) |
 | `questionnaire_answers` | Ответы на опросник (userId + все поля анкеты) |
-| `users/{userId}/likes` | Лайки пользователя (petId, timestamp) |
+| `likes` | Лайки пользователей (userId, petId, created_at) |
+| `risk_assessments` | Оценки рисков от GigaChat |
+
+### Роли пользователей
+- `user` — обычный пользователь (ищет питомца)
+- `admin` — администратор приюта (добавляет питомцев)
 
 ### Статусы заявок
 - `pending` — заявка на рассмотрении
@@ -175,7 +220,7 @@ val TextSecondary = Color(0xFF757575) // Серый (вторичный текс
 | `Screen` | Контейнер экрана с отступами 16dp и белым фоном |
 | `SwipeCard` | Карточка с жестом свайпа (порог 320px) |
 | `PetCard` | Карточка питомца с изображением и тегами |
-| `InfoItem` | Элемент информации (иконка + label + value) |
+| `RiskAssessmentCard` | Карточка оценки рисков от GigaChat |
 
 ## 🔧 Архитектурные паттерны
 
@@ -183,14 +228,14 @@ val TextSecondary = Color(0xFF757575) // Серый (вторичный текс
 ```kotlin
 @Singleton
 class PetRepository @Inject constructor(
-    private val db: FirebaseFirestore
+    private val supabase: SupabaseClient
 ) {
     suspend fun getPets(): List<Pet> { ... }
     suspend fun submitApplication(application: Application) { ... }
 }
 ```
 - Внедрение через `@Inject constructor`
-- Все методы `suspend` с `.await()` для Firebase
+- Все методы `suspend` с использованием Supabase Kotlin client
 - Обработка ошибок через `try-catch` с выбрасыванием исключений
 
 ### UseCase'и
@@ -228,12 +273,22 @@ class SwipeViewModel @Inject constructor(
 ```kotlin
 // Routes
 composable("auth") { AuthScreen(...) }
+composable("loading") { ... }
+composable("onboarding") { OnboardingScreen(...) }
 composable("questionnaire") { QuestionnaireScreen(onFinish = {...}) }
 composable("swipe") { SwipeScreen(...) }
-composable("account") { AccountScreen(onRetakeQuestionnaire = {...}) }
+composable("details/{petId}") { DetailsScreen(...) }
+composable("application/{petId}/{petName}") { ApplicationScreen(...) }
+composable("matches") { MatchesScreen(...) }
+composable("account") { AccountScreen(...) }
+composable("edit_profile") { EditProfileScreen(...) }
+composable("applications") { ApplicationsScreen(...) }
+composable("admin") { AdminScreen(...) }
+composable("admin/addPet") { AddEditPetScreen(...) }
+composable("admin/editPet/{petId}") { AddEditPetScreen(...)
 
 // Переход с аргументами
-navController.navigate("details_from_application/$petId")
+navController.navigate("details/$petId")
 // Получение в экране:
 val petId = backStackEntry.arguments?.getString("petId")
 ```
@@ -264,27 +319,67 @@ val petId = backStackEntry.arguments?.getString("petId")
 - Unit тесты: `src/test/`
 - Интеграционные тесты: `src/androidTest/`
 
+## ☁️ S3 хранилище (reg.ru Cloud)
+
+Приложение использует **S3 совместимое хранилище** для загрузки фотографий питомцев:
+
+- **Провайдер**: reg.ru Cloud Object Storage
+- **Бакет**: `pet-photos`
+- **Доступ**: Path-style URL (`https://s3.regru.cloud/pet-photos/{key}`)
+- **Авторизация**: AWS SigV4 подпись запросов
+
+### Настройка S3
+1. Создайте бакет `pet-photos` в reg.ru Cloud
+2. Настройте публичный доступ на чтение (`s3:GetObject`)
+3. Создайте Access Key с правами `s3:PutObject`, `s3:DeleteObject`
+4. Ключи доступны через `BuildConfig` (временное решение для проверки)
+
+## 🤖 GigaChat интеграция
+
+Для оценки рисков при подаче заявок используется **GigaChat** от Сбера:
+
+- **Интеграция**: Ktor Client + yandex-cloud SDK
+- **Функция**: Анализ ответов на опросник и формирование оценки рисков
+- **Результат**: `RiskAssessmentRecord` с рекомендациями для приюта
+
+### Настройка GigaChat
+Ключи доступны через `BuildConfig`:
+```kotlin
+buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"...\"")
+buildConfigField("String", "GIGACHAT_SCOPE", "\"GIGACHAT_API_PERS\"")
+buildConfigField("String", "GIGACHAT_AUTH_KEY", "\"...\"")
+```
+
 ## 🚧 Roadmap
 
-- [ ] Добавить Push-уведомления (Firebase Cloud Messaging)
-- [ ] Реализовать чат между приютом и пользователем
-- [ ] Добавить фильтрацию питомцев по параметрам (вид, возраст, пол)
-- [ ] Интегрировать Firebase Analytics
-- [ ] Добавить офлайн-режим (Room DB + WorkManager)
-- [ ] Поддержка тёмной темы (Material 3 Dynamic Color)
-- [ ] Многоязычность (ресурсы en/ru)
+### Реализовано
+- [x] S3 загрузка фото с SigV4 подписью
+- [x] Редактирование питомцев с существующими фото
+- [x] Удаление фото при редактировании
+- [x] GigaChat оценка рисков
+- [x] Админ-панель для приютов
+
+### В планах
+- [ ] Push-уведомления (Firebase Cloud Messaging)
+- [ ] Чат между приютом и пользователем
+- [ ] Фильтрация питомцев (вид, возраст, пол)
+- [ ] Firebase Analytics
+- [ ] Офлайн-режим (Room DB + WorkManager)
+- [ ] Тёмная тема (Material 3 Dynamic Color)
+- [ ] Многоязычность (ru/en)
 
 ## 🐛 Известные проблемы
 
-1. **Loading-экран** — нет таймаута, может зависнуть при проблемах с Firebase
-2. **Placeholder изображений** — используется `via.placeholder.com` вместо реальных заглушек
+1. **Loading-экран** — нет таймаута, может зависнуть при проблемах с Supabase
+2. **Placeholder изображений** — используется заглушка при пустом `imageUrl`
 3. **ProGuard** — правила пустые, R8 не настроен для release-сборки
 4. **Нет CI/CD** — отсутствует GitHub Actions для автоматических тестов
+5. **S3 ключи** — временно вшиты в `BuildConfig`, нужно перенести в безопасное хранилище
 
 ## 📞 Контакты
 
-Проект создан в учебных целях. Для вопросов обращайтесь к разработчику.
+Проект создан в учебных целях. Для вопросов обращайтесь через GitHub Issues.
 
 ---
 
-*Файл сгенерирован 17 мая 2026 г.*
+*Файл актуализирован 23 мая 2026 г.*

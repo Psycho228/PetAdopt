@@ -90,20 +90,18 @@ val QuestionnaireState.experienceSpecialNeeds: String get() = q3_special_needs_e
 val QuestionnaireState.reasonNow: String get() = q3_why_now
 
 val QuestionnaireState.understandsNeeds: List<String> get() = buildList {
-    if (q4_understand_requirements) add("Время")
     if (q4_understand_time) add("Время")
     if (q4_understand_attention) add("Внимание")
     if (q4_understand_training) add("Обучение")
     if (q4_understand_vet_care) add("Ветеринарная помощь")
-}
+}.ifEmpty { listOf("—") }
 val QuestionnaireState.readyForExpenses: List<String> get() = buildList {
-    if (q4_ready_expenses) add("Общие расходы")
     if (q4_ready_food) add("Корм")
     if (q4_ready_vet) add("Ветеринара")
     if (q4_ready_medication) add("Лекарства")
     if (q4_ready_vaccinations) add("Прививки")
     if (q4_ready_grooming) add("Груминг")
-}
+}.ifEmpty { listOf("—") }
 val QuestionnaireState.furnitureDamage: String get() = q4_furniture_damage_plan
 val QuestionnaireState.noiseBehavior: String get() = q4_noise_plan
 val QuestionnaireState.timidPet: String get() = q4_shy_pet_plan
@@ -112,12 +110,14 @@ val QuestionnaireState.willingToTrain: String get() = if (q4_ready_education) "�
 val QuestionnaireState.lifeChanges: String get() = q4_life_changes_plan
 val QuestionnaireState.obstacles: String get() = q4_obstacles_next_year
 
-val QuestionnaireState.safetyMeasures: List<String> get() = q5_safety_measures
-val QuestionnaireState.willingTo: List<String> get() = buildList {
-    if (q5_ready_neuter) add("Стерилизовать")
-    if (q5_ready_recommendations) add("Соблюдать рекомендации")
-    if (q5_ready_tracker) add("Использовать адресник")
-}
+val QuestionnaireState.safetyMeasures: List<String> get() = q5_safety_measures.ifEmpty { listOf("—") }
+val QuestionnaireState.willingTo: List<String> 
+    get() = buildList {
+        if (q5_ready_neuter) add("Стерилизовать/кастрировать питомца")
+        if (q5_ready_recommendations) add("Соблюдать рекомендации приюта")
+        if (q5_ready_tracker) add("Использовать адресник/чип")
+        if (q5_ready_keep_contact) add("Поддерживать связь с приютом")
+    }
 val QuestionnaireState.maintainContact: String get() = if (q5_ready_keep_contact) "Да" else "Нет"
 
 val QuestionnaireState.responsibleOwner: String get() = q6_responsible_owner_meaning

@@ -37,6 +37,11 @@ android {
         buildConfigField("String", "S3_ACCESS_KEY", "\"N8Z0ZYU4W3IHSGZKBBN5\"")
         buildConfigField("String", "S3_SECRET_KEY", "\"Yu7Z54MtphmMqXB0zOZSIaqWYCphil1gXOyywWKm\"")
         buildConfigField("String", "S3_BUCKET_NAME", "\"pet-photos\"")
+        
+        // GigaChat конфигурация
+        buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"019e516c-1cd7-7e6a-abb0-cfa756884880\"")
+        buildConfigField("String", "GIGACHAT_SCOPE", "\"GIGACHAT_API_PERS\"")
+        buildConfigField("String", "GIGACHAT_AUTH_KEY", "\"MDE5ZTUxNmMtMWNkNy03ZTZhLWFiYjAtY2ZhNzU2ODg0ODgwOjU2NjM4MzA3LTFhMmUtNDBjNy1iMTc4LWQwOGZhOGZhMWM4Zg==\"")
     }
 }
 
@@ -50,9 +55,12 @@ dependencies {
     implementation(libs.supabase.gotrue)
     implementation(libs.supabase.storage)
 
-    // Ktor (для Supabase на Android)
+    // Ktor (для Supabase на Android и GigaChat)
     implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
 
     // AndroidX
     implementation(libs.core.ktx)

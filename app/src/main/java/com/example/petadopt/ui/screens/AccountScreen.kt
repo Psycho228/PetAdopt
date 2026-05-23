@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.petadopt.data.model.*
+import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
@@ -37,6 +39,8 @@ fun AccountScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var showQuestionnaireDialog by remember { mutableStateOf(false) }
+    var showRiskAssessment by remember { mutableStateOf(false) }
+    var riskAssessmentDialogData by remember { mutableStateOf<RiskAssessmentRecord?>(null) }
 
     Scaffold(
         topBar = {
@@ -94,6 +98,19 @@ fun AccountScreen(
 
                 Spacer(Modifier.height(16.dp))
 
+                // Секция "Оценка рисков"
+                RiskAssessmentSection(
+                    riskAssessment = state.riskAssessment,
+                    onClick = {
+                        state.riskAssessment?.let {
+                            riskAssessmentDialogData = it
+                            showRiskAssessment = true
+                        }
+                    }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
                 // Кнопка админ-панели (только для admin/shelter)
                 if (state.user?.isShelter() == true || state.user?.isAdmin() == true) {
                     AdminPanelSection(onClick = onAdminPanel)
@@ -112,6 +129,89 @@ fun AccountScreen(
                 onRetakeQuestionnaire()
             }
         )
+    }
+    
+    // Диалог отображения полной оценки рисков
+    if (showRiskAssessment && riskAssessmentDialogData != null) {
+        riskAssessmentDialogData?.let { record ->
+            AlertDialog(
+                onDismissRequest = { 
+                    showRiskAssessment = false 
+                    riskAssessmentDialogData = null
+                },
+                title = { Text("Детальная оценка рисков") },
+                text = {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        // Уровень риска
+                        val riskLevel = RiskLevel.valueOf(record.overallRisk)
+                        val riskColor = when (riskLevel) {
+                            RiskLevel.LOW -> Color(0xFF4CAF50)
+                            RiskLevel.MEDIUM -> Color(0xFFFF9800)
+                            RiskLevel.HIGH -> Color(0xFFF44336)
+                            RiskLevel.VERY_HIGH -> Color(0xFFB71C1C)
+                        }
+                        
+                        Surface(
+                            color = riskColor.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "${when(riskLevel) {
+                                    RiskLevel.LOW -> "Низкий"
+                                    RiskLevel.MEDIUM -> "Средний"
+                                    RiskLevel.HIGH -> "Высокий"
+                                    RiskLevel.VERY_HIGH -> "Очень высокий"
+                                }} риск • ${record.riskScore}/100",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = riskColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Анализ
+                        Text("Анализ:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(record.detailedAnalysis, style = MaterialTheme.typography.bodyMedium)
+                        
+                        Spacer(Modifier.height(12.dp))
+                        
+                        // Рекомендация
+                        Text("Рекомендация:", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Surface(
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = when (Recommendation.valueOf(record.recommendation)) {
+                                    Recommendation.APPROVE -> "✅ Рекомендуется одобрить"
+                                    Recommendation.APPROVE_WITH_CONDITIONS -> "⚠️ Одобрить с условиями"
+                                    Recommendation.REVIEW_REQUIRED -> "🔍 Требуется дополнительная проверка"
+                                    Recommendation.REJECT -> "❌ Рекомендуется отклонить"
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    PrimaryButton(
+                        text = "Понятно",
+                        onClick = {
+                            showRiskAssessment = false
+                            riskAssessmentDialogData = null
+                        }
+                    )
+                }
+            )
+        }
     }
 }
 
@@ -467,8 +567,8 @@ fun FullQuestionnaireDialog(
                 
                 // 4. Ответственность и готовность
                 SectionTitle("4. Ответственность и готовность")
-                QuestionAnswer("Понимаете потребности", questionnaire.understandsNeeds.joinToString(", "))
-                QuestionAnswer("Готовы к расходам", questionnaire.readyForExpenses.joinToString(", "))
+                QuestionAnswer("Понимаете потребности", questionnaire.understandsNeeds.ifEmpty { listOf("—") }.joinToString(", "))
+                QuestionAnswer("Готовы к расходам", questionnaire.readyForExpenses.ifEmpty { listOf("—") }.joinToString(", "))
                 QuestionAnswer("Если испортит мебель", questionnaire.furnitureDamage.ifBlank { "—" })
                 QuestionAnswer("Если будет шуметь", questionnaire.noiseBehavior.ifBlank { "—" })
                 QuestionAnswer("Если пугливый", questionnaire.timidPet.ifBlank { "—" })
@@ -481,8 +581,8 @@ fun FullQuestionnaireDialog(
                 
                 // 5. Безопасность
                 SectionTitle("5. Безопасность")
-                QuestionAnswer("Меры безопасности", questionnaire.safetyMeasures.joinToString(", "))
-                QuestionAnswer("Готовы к процедурам", questionnaire.willingTo.joinToString(", "))
+                QuestionAnswer("Меры безопасности", questionnaire.safetyMeasures.ifEmpty { listOf("—") }.joinToString(", "))
+                QuestionAnswer("Готовы к процедурам", questionnaire.willingTo.ifEmpty { listOf("—") }.joinToString(", "))
                 QuestionAnswer("Поддерживать связь", questionnaire.maintainContact)
                 
                 Spacer(Modifier.height(16.dp))
@@ -548,6 +648,119 @@ private fun QuestionAnswer(label: String, value: String) {
             color = TextSecondary,
             modifier = Modifier.weight(0.55f)
         )
+    }
+}
+
+@Composable
+private fun RiskAssessmentSection(
+    riskAssessment: RiskAssessmentRecord?,
+    onClick: () -> Unit
+) {
+    if (riskAssessment != null) {
+        val riskLevel = RiskLevel.valueOf(riskAssessment.overallRisk)
+        val (riskText, riskColor) = when (riskLevel) {
+            RiskLevel.LOW -> Pair("Низкий риск", Color(0xFF4CAF50))
+            RiskLevel.MEDIUM -> Pair("Средний риск", Color(0xFFFF9800))
+            RiskLevel.HIGH -> Pair("Высокий риск", Color(0xFFF44336))
+            RiskLevel.VERY_HIGH -> Pair("Очень высокий риск", Color(0xFFB71C1C))
+        }
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .clickable { onClick() },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = riskColor.copy(alpha = 0.1f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(riskColor.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = riskColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(Modifier.width(14.dp))
+
+                    Column {
+                        Text(
+                            text = "Оценка рисков",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = riskColor
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "${riskText} • ${riskAssessment.riskScore}/100",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = riskColor.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    tint = riskColor
+                )
+            }
+        }
+    } else {
+        // Если оценки нет, показываем информационную карточку
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(24.dp)
+                )
+
+                Spacer(Modifier.width(14.dp))
+
+                Column {
+                    Text(
+                        text = "Оценка рисков не пройдена",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = TextSecondary
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = "Пройдите опросник для получения оценки",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary.copy(alpha = 0.8f)
+                    )
+                }
+            }
+        }
     }
 }
 

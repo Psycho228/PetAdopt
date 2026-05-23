@@ -2,9 +2,11 @@ package com.example.petadopt.data.repository
 
 import android.util.Log
 import com.example.petadopt.data.model.QuestionnaireAnswer
+import com.example.petadopt.data.model.RiskAssessmentRecord
 import com.example.petadopt.util.SupabaseConfig
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -17,9 +19,11 @@ class SupabaseQuestionnaireRepository @Inject constructor(
 ) : QuestionnaireRepository {
     private val postgrest: Postgrest = SupabaseConfig.postgrest
     private val auth: Auth = SupabaseConfig.auth
+    private val json = Json { ignoreUnknownKeys = true }
     
     companion object {
         private const val TABLE_QUESTIONNAIRE = "questionnaire_answers"
+        private const val TABLE_RISK_ASSESSMENT = "risk_assessments"
         private const val TAG = "SupabaseQuestionnaireRepository"
     }
 
@@ -58,11 +62,11 @@ class SupabaseQuestionnaireRepository @Inject constructor(
                 put("q3_why_now", answer.q3_why_now)
                 // Раздел 4
                 put("q4_understand_requirements", answer.q4_understand_requirements)
-                put("q4_understand_time", answer.q4_understand_time)
+                put("q4_understand_time", answer.q4_understand_time ?: false)
                 put("q4_understand_attention", answer.q4_understand_attention)
                 put("q4_understand_training", answer.q4_understand_training)
                 put("q4_understand_vet_care", answer.q4_understand_vet_care)
-                put("q4_ready_expenses", answer.q4_ready_expenses)
+                put("q4_ready_expenses", answer.q4_ready_expenses ?: false)
                 put("q4_ready_food", answer.q4_ready_food)
                 put("q4_ready_vet", answer.q4_ready_vet)
                 put("q4_ready_medication", answer.q4_ready_medication)
@@ -75,8 +79,9 @@ class SupabaseQuestionnaireRepository @Inject constructor(
                 put("q4_ready_education", answer.q4_ready_education)
                 put("q4_life_changes_plan", answer.q4_life_changes_plan)
                 put("q4_obstacles_next_year", answer.q4_obstacles_next_year)
-                // Раздел 5
-                put("q5_safety_measures", JsonArray(answer.q5_safety_measures.map { JsonPrimitive(it) }))
+                // Раздел 5 - используем старый массив q5_safety_measures
+                val safetyMeasuresList = answer.q5_safety_measures
+                put("q5_safety_measures", JsonArray(safetyMeasuresList.map { JsonPrimitive(it) }))
                 put("q5_ready_neuter", answer.q5_ready_neuter)
                 put("q5_ready_recommendations", answer.q5_ready_recommendations)
                 put("q5_ready_tracker", answer.q5_ready_tracker)
@@ -87,21 +92,19 @@ class SupabaseQuestionnaireRepository @Inject constructor(
                 put("q6_why_good_owner", answer.q6_why_good_owner)
             }
             
-            // Проверяем, есть ли уже запись для этого пользователя
-            val existing = postgrest.from(TABLE_QUESTIONNAIRE)
-                .select { filter { eq("user_id", uid) } }
-                .decodeSingleOrNull<QuestionnaireAnswer>()
+            // УДАЛЯЕМ ВСЕ старые оценки рисков ПЕРЕД сохранением опросника
+            val deleteResult = postgrest.from(TABLE_RISK_ASSESSMENT)
+                .delete { filter { eq("user_id", uid) } }
+            Log.d(TAG, "Deleted risk assessments for user $uid: $deleteResult")
             
-            if (existing != null) {
-                // Обновляем существующую запись
-                postgrest.from(TABLE_QUESTIONNAIRE)
-                    .update(answerData) { filter { eq("user_id", uid) } }
-                Log.d(TAG, "Questionnaire updated for user: $uid")
-            } else {
-                // Создаём новую запись
-                postgrest.from(TABLE_QUESTIONNAIRE).insert(answerData)
-                Log.d(TAG, "Questionnaire inserted for user: $uid")
-            }
+            // УДАЛЯЕМ СТАРУЮ запись опросника (чтобы избежать конфликта старых полей)
+            val deleteOldQuestionnaire = postgrest.from(TABLE_QUESTIONNAIRE)
+                .delete { filter { eq("user_id", uid) } }
+            Log.d(TAG, "Deleted old questionnaire for user $uid: $deleteOldQuestionnaire")
+            
+            // Создаём новую запись (вместо update)
+            postgrest.from(TABLE_QUESTIONNAIRE).insert(answerData)
+            Log.d(TAG, "Questionnaire inserted for user: $uid")
         } catch (e: Exception) {
             Log.e(TAG, "Error saving questionnaire: ${e.message}")
             throw Exception("Ошибка сохранения опросника: ${e.message}")
@@ -157,6 +160,81 @@ class SupabaseQuestionnaireRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Error deleting questionnaire: ${e.message}")
             throw Exception("Ошибка удаления опросника: ${e.message}")
+        }
+    }
+
+    override suspend fun saveRiskAssessment(record: RiskAssessmentRecord) {
+        val uid = currentUserId ?: throw Exception("Пользователь не авторизован")
+        
+        Log.d(TAG, "=== Сохранение оценки рисков для userId: $uid ===")
+        Log.d(TAG, "riskScore: ${record.riskScore}, overallRisk: ${record.overallRisk}")
+        Log.d(TAG, "gigachat_request_id: ${record.gigachat_request_id}")
+        
+        try {
+            val assessmentData = buildJsonObject {
+                put("user_id", uid)
+                put("questionnaire_answer_id", record.questionnaire_answer_id)
+                put("overallRisk", record.overallRisk)
+                put("riskScore", record.riskScore)
+                put("recommendation", record.recommendation)
+                put("detailedAnalysis", record.detailedAnalysis)
+                put("riskFactorsJson", record.riskFactorsJson)
+                put("positiveFactorsJson", record.positiveFactorsJson)
+                put("recommendationsJson", record.recommendationsJson)
+                put("gigachat_request_id", record.gigachat_request_id)
+            }
+            
+            Log.d(TAG, "Данные для отправки: $assessmentData")
+            Log.d(TAG, "Выполнение INSERT в таблицу $TABLE_RISK_ASSESSMENT...")
+            
+            val response = postgrest.from(TABLE_RISK_ASSESSMENT).insert(assessmentData)
+            Log.d(TAG, "Ответ от Supabase: $response")
+            
+            Log.d(TAG, "✅ Оценка рисков успешно сохранена в БД!")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ ОШИБКА при сохранении оценки рисков: ${e.message}", e)
+            e.printStackTrace()
+            throw Exception("Ошибка сохранения оценки рисков: ${e.message}. Проверьте, что таблица создана и RLS политики настроены.")
+        }
+    }
+
+    override suspend fun getRiskAssessment(): RiskAssessmentRecord? {
+        val uid = currentUserId
+        if (uid == null) return null
+        
+        return try {
+            // Получаем ВСЕ записи и сортируем на клиенте (получить последнюю по created_at)
+            val response = postgrest.from(TABLE_RISK_ASSESSMENT)
+                .select { filter { eq("user_id", uid) } }
+                .decodeList<RiskAssessmentRecord>()
+            
+            val latest = response.maxByOrNull { it.created_at }
+            
+            Log.d(TAG, "Latest risk assessment loaded for user: $uid, found: ${latest != null}, created_at: ${latest?.created_at}")
+            latest
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting risk assessment: ${e.message}")
+            null
+        }
+    }
+
+    override suspend fun getRiskAssessmentHistory(): List<RiskAssessmentRecord> {
+        val uid = currentUserId
+        if (uid == null) return emptyList()
+        
+        return try {
+            val response = postgrest.from(TABLE_RISK_ASSESSMENT)
+                .select { 
+                    filter { eq("user_id", uid) }
+                }
+                .decodeList<RiskAssessmentRecord>()
+                .sortedByDescending { it.created_at }
+            
+            Log.d(TAG, "Risk assessment history loaded: ${response.size} records")
+            response
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting risk assessment history: ${e.message}")
+            emptyList()
         }
     }
 }

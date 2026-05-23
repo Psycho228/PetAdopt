@@ -3,6 +3,7 @@ package com.example.petadopt.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,19 +15,25 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavBackStackEntry
 import com.example.petadopt.viewmodel.QuestionnaireState
 import com.example.petadopt.viewmodel.*
 import com.example.petadopt.ui.components.PrimaryButton
+import com.example.petadopt.ui.components.RiskAssessmentCard
+import com.example.petadopt.data.model.GigaChatRiskAssessment
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.QuestionnaireViewModel
+import androidx.compose.foundation.clickable
 
 sealed class Question {
     data class Text(
@@ -54,7 +61,7 @@ sealed class Question {
         val title: String,
         val options: List<String>,
         val selected: List<String>,
-        val onValueChange: (List<String>) -> Unit
+        val onValueChange: ((List<String>) -> Unit)?
     ) : Question()
 
     data class TextArea(
@@ -75,7 +82,15 @@ fun QuestionnaireScreen(
     val state by viewModel.state.collectAsState()
     var step by remember { mutableStateOf(0) }
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var showConfirmation by remember { mutableStateOf(false) }
+    var showRiskAssessment by remember { mutableStateOf(false) }
+    var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
+
+    // Загружаем сохранённые данные при открытии экрана
+    LaunchedEffect(Unit) {
+        viewModel.loadAnswers()
+    }
 
     // Секция 1: Основная информация (5 вопросов)
     val section1Questions = listOf(
@@ -149,7 +164,7 @@ fun QuestionnaireScreen(
             state.safetyMeasures, viewModel::onSafetyMeasuresChange),
         Question.CheckboxGroup("Готовы ли вы:",
             listOf("Стерилизовать питомца (если нужно)", "Соблюдать рекомендации приюта", "Использовать адресник и поводок"),
-            state.willingTo, viewModel::onWillingToChange),
+            state.willingTo, null), // Вычисляется из bool-полей, редактирование не нужно
         Question.YesNo("Готовы ли вы поддерживать связь после пристройства?",
             state.maintainContact, viewModel::onMaintainContactChange)
     )
@@ -260,24 +275,36 @@ fun QuestionnaireScreen(
                                 singleLine = question.singleLine,
                                 minLines = if (question.singleLine) 1 else 3,
                                 keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = if (index < currentQuestions.size - 1) 
+                                        ImeAction.Next else ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onNext = {
+                                        focusManager.moveFocus(FocusDirection.Next)
+                                    },
+                                    onDone = {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                    }
                                 )
                             )
                         }
                         is Question.Dropdown -> {
                             Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
                             Spacer(Modifier.height(8.dp))
-                            var selected by remember { mutableStateOf(question.value) }
+                            var selected by remember(question.value) { mutableStateOf(question.value) }
                             val onValueChange = question.onValueChange
                             
                             OutlinedTextField(
                                 value = selected.ifEmpty { "Выберите вариант" },
-                                onValueChange = { selected = it },
+                                onValueChange = { },
                                 label = { Text(question.title) },
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { /* Показываем диалог выбора */ },
                                 singleLine = true,
                                 readOnly = true,
-                                enabled = false,
                                 trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
                             )
                             Spacer(Modifier.height(8.dp))
@@ -335,20 +362,29 @@ fun QuestionnaireScreen(
                                 question.options.forEach { option ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                val newSelected = if (option in question.selected) {
+                                                    question.selected - option
+                                                } else {
+                                                    question.selected + option
+                                                }
+                                                question.onValueChange?.invoke(newSelected)
+                                            }
                                     ) {
                                         Checkbox(
                                             checked = option in question.selected,
-                                            onCheckedChange = { checked ->
-                                                val newSelected = if (checked) {
+                                            onCheckedChange = { isChecked ->
+                                                val newSelected = if (isChecked) {
                                                     question.selected + option
                                                 } else {
                                                     question.selected - option
                                                 }
-                                                question.onValueChange(newSelected)
+                                                question.onValueChange?.invoke(newSelected)
                                             }
                                         )
-                                        Text(option, style = MaterialTheme.typography.bodyMedium)
+                                        Text(option, modifier = Modifier.padding(start = 8.dp))
                                     }
                                 }
                             }
@@ -362,13 +398,27 @@ fun QuestionnaireScreen(
                                 placeholder = { Text(question.hint, color = TextSecondary) },
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = question.minLines,
-                                maxLines = 10
+                                maxLines = question.minLines + 2,
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Sentences,
+                                    imeAction = if (index < currentQuestions.size - 1) 
+                                        ImeAction.Next else ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(
+                                    onNext = {
+                                        focusManager.moveFocus(FocusDirection.Next)
+                                    },
+                                    onDone = {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                    }
+                                )
                             )
                         }
                     }
                     
-                    if (index < currentQuestions.lastIndex) {
-                        Spacer(Modifier.height(24.dp))
+                    if (index < currentQuestions.size - 1) {
+                        Spacer(Modifier.height(20.dp))
                     }
                 }
             }
@@ -421,5 +471,85 @@ fun QuestionnaireScreen(
 
             Spacer(Modifier.height(16.dp))
         }
+    }
+    
+    // Диалог подтверждения с опцией оценки рисков
+    if (showConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showConfirmation = false },
+            title = { Text("Завершение опросника") },
+            text = {
+                Column {
+                    Text("Сохранить ответы и получить оценку рисков от GigaChat?")
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Это займёт несколько секунд. Оценка поможет приюту принять решение.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                }
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Сохранить и оценить",
+                    onClick = {
+                        showConfirmation = false
+                        viewModel.saveWithRiskAssessment(
+                            onSuccess = { assessment ->
+                                riskAssessmentResult = assessment
+                                showRiskAssessment = true
+                                onFinish()
+                            },
+                            onRiskAssessed = { result ->
+                                if (result.isFailure) {
+                                    // Даже при ошибке оценки переходим на следующий экран
+                                    onFinish()
+                                }
+                            }
+                        )
+                    }
+                )
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showConfirmation = false
+                        viewModel.saveAndFinish {
+                            onFinish()
+                        }
+                    }
+                ) {
+                    Text("Только сохранить")
+                }
+            }
+        )
+    }
+    
+    // Отображение оценки рисков
+    if (showRiskAssessment && riskAssessmentResult != null) {
+        AlertDialog(
+            onDismissRequest = { 
+                showRiskAssessment = false 
+                riskAssessmentResult = null
+            },
+            title = { Text("Результат оценки") },
+            text = {
+                riskAssessmentResult?.let { assessment ->
+                    RiskAssessmentCard(
+                        assessment = assessment,
+                        modifier = Modifier.widthIn(max = 400.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Понятно",
+                    onClick = {
+                        showRiskAssessment = false
+                        riskAssessmentResult = null
+                    }
+                )
+            }
+        )
     }
 }

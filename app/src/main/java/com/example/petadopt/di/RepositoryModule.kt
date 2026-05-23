@@ -2,6 +2,7 @@ package com.example.petadopt.di
 
 import com.example.petadopt.data.repository.AdminRepository
 import com.example.petadopt.data.repository.AuthRepository
+import com.example.petadopt.data.repository.GigaChatRepository
 import com.example.petadopt.data.repository.PetRepository
 import com.example.petadopt.data.repository.QuestionnaireRepository
 import com.example.petadopt.data.repository.StorageRepository
@@ -9,6 +10,8 @@ import com.example.petadopt.data.repository.S3StorageRepository
 import com.example.petadopt.data.repository.SupabaseAuthRepository
 import com.example.petadopt.data.repository.SupabasePetRepository
 import com.example.petadopt.data.repository.SupabaseQuestionnaireRepository
+import com.example.petadopt.domain.usecase.GetRiskAssessmentUseCase
+import com.example.petadopt.domain.usecase.GetRiskAssessmentHistoryUseCase
 import com.example.petadopt.domain.usecase.*
 import dagger.Module
 import dagger.Provides
@@ -58,6 +61,12 @@ object RepositoryModule {
         storageRepository: S3StorageRepository
     ): StorageRepository {
         return storageRepository
+    }
+
+    @Provides
+    @Singleton
+    fun provideGigaChatRepository(): GigaChatRepository {
+        return GigaChatRepository()
     }
 }
 
@@ -213,5 +222,27 @@ object UseCaseModule {
     @Provides
     fun provideDeleteImageUseCase(storageRepository: StorageRepository): DeleteImageUseCase {
         return DeleteImageUseCase(storageRepository)
+    }
+
+    // Risk Assessment UseCases
+    @Provides
+    fun provideAssessRiskUseCase(repository: GigaChatRepository): AssessRiskUseCase {
+        return AssessRiskUseCase(repository)
+    }
+
+    @Provides
+    fun provideRiskAssessmentUseCases(assessRisk: AssessRiskUseCase): RiskAssessmentUseCases {
+        return RiskAssessmentUseCases(assessRisk)
+    }
+
+    // Risk Assessment Data UseCases
+    @Provides
+    fun provideGetRiskAssessmentUseCase(repository: QuestionnaireRepository): GetRiskAssessmentUseCase {
+        return GetRiskAssessmentUseCase(repository)
+    }
+
+    @Provides
+    fun provideGetRiskAssessmentHistoryUseCase(repository: QuestionnaireRepository): GetRiskAssessmentHistoryUseCase {
+        return GetRiskAssessmentHistoryUseCase(repository)
     }
 }

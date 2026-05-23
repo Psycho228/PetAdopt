@@ -14,6 +14,8 @@ import javax.inject.Inject
 data class AccountState(
     val user: User? = null,
     val questionnaire: com.example.petadopt.data.model.QuestionnaireAnswer? = null,
+    val riskAssessment: com.example.petadopt.data.model.RiskAssessmentRecord? = null,
+    val riskAssessmentHistory: List<com.example.petadopt.data.model.RiskAssessmentRecord> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -26,7 +28,9 @@ class AccountViewModel @Inject constructor(
     private val getCurrentUserIdUseCase: GetCurrentUserIdUseCase,
     private val isCurrentUserAdminUseCase: IsCurrentUserAdminUseCase,
     private val isCurrentUserShelterUseCase: IsCurrentUserShelterUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val logoutUseCase: LogoutUseCase,
+    private val getRiskAssessmentUseCase: GetRiskAssessmentUseCase,
+    private val getRiskAssessmentHistoryUseCase: GetRiskAssessmentHistoryUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(AccountState())
@@ -43,10 +47,14 @@ class AccountViewModel @Inject constructor(
             try {
                 val user = getUserUseCase()
                 val questionnaire = getQuestionnaireUseCase()
+                val riskAssessment = getRiskAssessmentUseCase()
+                val riskHistory = getRiskAssessmentHistoryUseCase()
 
                 _state.value = _state.value.copy(
                     user = user,
                     questionnaire = questionnaire,
+                    riskAssessment = riskAssessment,
+                    riskAssessmentHistory = riskHistory,
                     isLoading = false
                 )
             } catch (e: Exception) {
