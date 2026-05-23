@@ -1,39 +1,39 @@
 package com.example.petadopt.ui.screens
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.extended.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusDirection
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavBackStackEntry
-import com.example.petadopt.viewmodel.QuestionnaireState
-import com.example.petadopt.viewmodel.*
+import com.example.petadopt.data.model.GigaChatRiskAssessment
 import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.components.RiskAssessmentCard
-import com.example.petadopt.data.model.GigaChatRiskAssessment
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.QuestionnaireViewModel
-import androidx.compose.foundation.clickable
+import com.example.petadopt.viewmodel.*
 
 sealed class Question {
     data class Text(
@@ -41,37 +41,39 @@ sealed class Question {
         val hint: String = "",
         val value: String,
         val onValueChange: (String) -> Unit,
-        val singleLine: Boolean = true
+        val singleLine: Boolean = true,
+        val icon: ImageVector? = null
     ) : Question()
 
     data class Dropdown(
         val title: String,
         val options: List<String>,
         val value: String,
-        val onValueChange: (String) -> Unit
-    ) : Question()
-
-    data class YesNo(
-        val title: String,
-        val value: String,
-        val onValueChange: (String) -> Unit
+        val onValueChange: (String) -> Unit,
+        val icon: ImageVector? = null
     ) : Question()
 
     data class CheckboxGroup(
         val title: String,
         val options: List<String>,
-        val selected: List<String>,
-        val onValueChange: ((List<String>) -> Unit)?
+        val selectedValues: List<String>,
+        val onValueChange: (List<String>) -> Unit,
+        val icon: ImageVector? = null
     ) : Question()
 
-    data class TextArea(
+    data class YesNo(
         val title: String,
-        val hint: String = "",
         val value: String,
         val onValueChange: (String) -> Unit,
-        val minLines: Int = 3
+        val icon: ImageVector? = null
     ) : Question()
 }
+
+data class SectionInfo(
+    val title: String,
+    val description: String,
+    val icon: ImageVector
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,399 +83,92 @@ fun QuestionnaireScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var step by remember { mutableStateOf(0) }
-    val focusManager = LocalFocusManager.current
-    val keyboardController = LocalSoftwareKeyboardController.current
     var showConfirmation by remember { mutableStateOf(false) }
     var showRiskAssessment by remember { mutableStateOf(false) }
     var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
 
-    // Загружаем сохранённые данные при открытии экрана
     LaunchedEffect(Unit) {
         viewModel.loadAnswers()
     }
 
-    // Секция 1: Основная информация (5 вопросов)
-    val section1Questions = listOf(
-        Question.Text("Как вас зовут?", "Ваше имя", state.name, viewModel::onNameChange),
-        Question.Text("Сколько вам лет?", "Возраст", state.age, viewModel::onAgeChange),
-        Question.Dropdown("В каком городе вы живёте?",
-            listOf("Москва", "Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Другой"),
-            state.city, viewModel::onCityChange),
-        Question.Text("Чем вы занимаетесь?", "Работа / учёба", state.occupation, viewModel::onOccupationChange),
-        Question.Text("Как с вами лучше связаться?", "Телефон / Email", state.contactMethod, viewModel::onContactMethodChange)
-    )
-
-    // Секция 2: Жилищные условия (10 вопросов)
-    val section2Questions = listOf(
-        Question.Dropdown("Где вы живёте?",
-            listOf("Квартира", "Частный дом", "Съёмное жильё", "Другое"),
-            state.housingType, viewModel::onHousingTypeChange),
-        Question.YesNo("Разрешены ли животные в вашем жилье?",
-            state.petsAllowed, viewModel::onPetsAllowedChange),
-        Question.Dropdown("С кем вы живёте?",
-            listOf("Один", "Семья", "Друзья / соседи", "Другое"),
-            state.livingWith, viewModel::onLivingWithChange),
-        Question.YesNo("Все ли члены семьи согласны с появлением питомца?",
-            state.familyAgreement, viewModel::onFamilyAgreementChange),
-        Question.YesNo("Есть ли у вас дети?",
-            state.hasChildren, viewModel::onHasChildrenChange),
-        Question.Text("Если да — какого возраста?", "Возраст детей", state.childrenAge, viewModel::onChildrenAgeChange),
-        Question.YesNo("Есть ли у вас другие животные?",
-            state.hasOtherAnimals, viewModel::onHasOtherAnimalsChange),
-        Question.Text("Если да — то какие?", "Виды животных", state.otherAnimals, viewModel::onOtherAnimalsChange),
-        Question.Text("Сколько часов в день питомец будет оставаться один?", "Часы", state.hoursAlone, viewModel::onHoursAloneChange),
-        Question.Text("Кто будет ухаживать за питомцем во время вашего отсутствия или отпуска?", "Контактное лицо", state.caretaker, viewModel::onCaretakerChange)
-    )
-
-    // Секция 3: Опыт с животными (6 вопросов)
-    val section3Questions = listOf(
-        Question.YesNo("Были ли у вас раньше питомцы?",
-            state.hadPetsBefore, viewModel::onHadPetsBeforeChange),
-        Question.Text("Что с ними сейчас?", "Статус прошлых питомцев", state.petsNow, viewModel::onPetsNowChange),
-        Question.YesNo("Есть ли у вас опыт ухода за собаками?",
-            state.experienceDogs, viewModel::onExperienceDogsChange),
-        Question.YesNo("Есть ли у вас опыт ухода за кошками?",
-            state.experienceCats, viewModel::onExperienceCatsChange),
-        Question.YesNo("Есть ли у вас опыт ухода за животными с особенностями?",
-            state.experienceSpecialNeeds, viewModel::onExperienceSpecialNeedsChange),
-        Question.Text("Почему вы решили взять питомца именно сейчас?", "", state.reasonNow, viewModel::onReasonNowChange, singleLine = false)
-    )
-
-    // Секция 4: Ответственность и готовность (8 вопросов)
-    val section4Questions = listOf(
-        Question.CheckboxGroup("Понимаете ли вы, что питомцу потребуется:",
-            listOf("Время", "Внимание", "Обучение", "Ветеринарная помощь"),
-            state.understandsNeeds, viewModel::onUnderstandsNeedsChange),
-        Question.CheckboxGroup("Готовы ли вы к регулярным расходам на:",
-            listOf("Корм", "Ветеринара", "Лекарства", "Прививки", "Груминг"),
-            state.readyForExpenses, viewModel::onReadyForExpensesChange),
-        Question.Text("Что вы будете делать, если питомец испортит мебель?", "", state.furnitureDamage, viewModel::onFurnitureDamageChange, singleLine = false),
-        Question.Text("Что вы будете делать, если питомец будет шуметь?", "", state.noiseBehavior, viewModel::onNoiseBehaviorChange, singleLine = false),
-        Question.Text("Что вы будете делать, если питомец окажется пугливым?", "", state.timidPet, viewModel::onTimidPetChange, singleLine = false),
-        Question.Text("Что вы будете делать, если питомец долго адаптируется?", "", state.adaptation, viewModel::onAdaptationChange, singleLine = false),
-        Question.YesNo("Готовы ли вы заниматься воспитанием и адаптацией питомца?",
-            state.willingToTrain, viewModel::onWillingToTrainChange),
-        Question.Text("Что вы будете делать, если у вас изменятся жизненные обстоятельства? (переезд, работа, рождение ребёнка)", "", state.lifeChanges, viewModel::onLifeChangesChange, singleLine = false),
-        Question.Text("Есть ли что-то, что может помешать вам заботиться о питомце в ближайший год?", "", state.obstacles, viewModel::onObstaclesChange, singleLine = false)
-    )
-
-    // Секция 5: Безопасность (4 вопроса)
-    val section5Questions = listOf(
-        Question.CheckboxGroup("Установлены ли у вас:",
-            listOf("Сетки на окнах", "Безопасные балконы", "Ограждения (для дома)"),
-            state.safetyMeasures, viewModel::onSafetyMeasuresChange),
-        Question.CheckboxGroup("Готовы ли вы:",
-            listOf("Стерилизовать питомца (если нужно)", "Соблюдать рекомендации приюта", "Использовать адресник и поводок"),
-            state.willingTo, null), // Вычисляется из bool-полей, редактирование не нужно
-        Question.YesNo("Готовы ли вы поддерживать связь после пристройства?",
-            state.maintainContact, viewModel::onMaintainContactChange)
-    )
-
-    // Секция 6: Эмоциональная часть (3 вопроса)
-    val section6Questions = listOf(
-        Question.Text("Что для вас значит \"ответственный хозяин\"?", "", state.responsibleOwner, viewModel::onResponsibleOwnerChange, singleLine = false),
-        Question.Text("Как вы представляете жизнь с питомцем?", "", state.lifeWithPet, viewModel::onLifeWithPetChange, singleLine = false),
-        Question.Text("Почему, по вашему мнению, именно вы станете хорошим хозяином?", "", state.whyGoodOwner, viewModel::onWhyGoodOwnerChange, singleLine = false)
-    )
-
-    // Все секции
     val sections = listOf(
-        "Основная информация" to section1Questions,
-        "Жилищные условия" to section2Questions,
-        "Опыт с животными" to section3Questions,
-        "Ответственность и готовность" to section4Questions,
-        "Безопасность" to section5Questions,
-        "Эмоциональная часть" to section6Questions
+        SectionInfo("Основная информация", "Расскажите о себе", Icons.Default.Person) to listOf(
+            Question.Text("Как вас зовут?", "Ваше имя", state.name, viewModel::onNameChange, icon = Icons.Default.Person),
+            Question.Text("Сколько вам лет?", "Возраст", state.age, viewModel::onAgeChange, icon = Icons.Default.CalendarToday),
+            Question.Dropdown("В каком городе вы живёте?",
+                listOf("Москва", "Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Другой"),
+                state.city, viewModel::onCityChange, icon = Icons.Default.LocationOn),
+            Question.Text("Чем вы занимаетесь?", "Работа / учёба", state.occupation, viewModel::onOccupationChange, icon = Icons.Default.Work),
+            Question.Text("Как с вами лучше связаться?", "Телефон / Email", state.contactMethod, viewModel::onContactMethodChange, icon = Icons.Default.Phone)
+        ),
+        SectionInfo("Жилищные условия", "Ваши условия проживания", Icons.Default.Home) to listOf(
+            Question.Dropdown("Где вы живёте?",
+                listOf("Квартира", "Частный дом", "Съёмное жильё", "Другое"),
+                state.housingType, viewModel::onHousingTypeChange, icon = Icons.Default.Home),
+            Question.YesNo("Разрешены ли животные в вашем жилье?",
+                state.petsAllowed, viewModel::onPetsAllowedChange, icon = Icons.Default.CheckCircle),
+            Question.Dropdown("С кем вы живёте?",
+                listOf("Один", "Семья", "Друзья / соседи", "Другое"),
+                state.livingWith, viewModel::onLivingWithChange, icon = Icons.Default.Group),
+            Question.YesNo("Все ли члены семьи согласны с появлением питомца?",
+                state.familyAgreement, viewModel::onFamilyAgreementChange, icon = Icons.Default.Person),
+            Question.YesNo("Есть ли у вас дети?",
+                state.hasChildren, viewModel::onHasChildrenChange, icon = Icons.Default.Person),
+            Question.Text("Если да — какого возраста?", "Возраст детей", state.childrenAge, viewModel::onChildrenAgeChange, icon = Icons.Default.Person),
+            Question.YesNo("Есть ли у вас другие животные?",
+                state.hasOtherAnimals, viewModel::onHasOtherAnimalsChange, icon = Icons.Default.Pets),
+            Question.Text("Если да — то какие?", "Виды животных", state.otherAnimals, viewModel::onOtherAnimalsChange, icon = Icons.Default.Pets),
+            Question.Text("Сколько часов в день питомец будет оставаться один?", "Часы", state.hoursAlone, viewModel::onHoursAloneChange, icon = Icons.Default.AccessTime),
+            Question.Text("Кто будет ухаживать за питомцем во время вашего отсутствия?", "Контактное лицо", state.caretaker, viewModel::onCaretakerChange, icon = Icons.Default.PersonAdd)
+        ),
+        SectionInfo("Опыт с животными", "Ваш опыт ухода", Icons.Default.Pets) to listOf(
+            Question.YesNo("Были ли у вас раньше питомцы?",
+                state.hadPetsBefore, viewModel::onHadPetsBeforeChange, icon = Icons.Default.Star),
+            Question.Text("Что с ними сейчас?", "Статус прошлых питомцев", state.petsNow, viewModel::onPetsNowChange, icon = Icons.Default.Info),
+            Question.YesNo("Есть ли у вас опыт ухода за собаками?",
+                state.experienceDogs, viewModel::onExperienceDogsChange, icon = Icons.Default.Pets),
+            Question.YesNo("Есть ли у вас опыт ухода за кошками?",
+                state.experienceCats, viewModel::onExperienceCatsChange, icon = Icons.Default.Pets),
+            Question.YesNo("Есть ли у вас опыт ухода за животными с особенностями?",
+                state.experienceSpecialNeeds, viewModel::onExperienceSpecialNeedsChange, icon = Icons.Default.Accessibility),
+            Question.Text("Почему вы решили взять питомца именно сейчас?", "", state.reasonNow, viewModel::onReasonNowChange, icon = Icons.Default.Lightbulb)
+        ),
+        SectionInfo("Ответственность", "Готовность к заботе", Icons.Default.Favorite) to listOf(
+            Question.CheckboxGroup("Понимаете ли вы, что питомцу потребуется:",
+                listOf("Время", "Внимание", "Обучение", "Ветеринарная помощь"),
+                state.understandsNeeds, viewModel::onUnderstandsNeedsChange, icon = Icons.Default.Notifications),
+            Question.CheckboxGroup("Готовы ли вы к регулярным расходам на:",
+                listOf("Корм", "Ветеринара", "Лекарства", "Прививки", "Груминг"),
+                state.readyForExpenses, viewModel::onReadyForExpensesChange, icon = Icons.Default.AttachMoney),
+            Question.Text("Что вы будете делать, если питомец испортит мебель?", "", state.furnitureDamage, viewModel::onFurnitureDamageChange, icon = Icons.Default.Warning),
+            Question.Text("Что вы будете делать, если питомец будет шуметь?", "", state.noiseBehavior, viewModel::onNoiseBehaviorChange, icon = Icons.Default.NotificationsActive),
+            Question.Text("Что вы будете делать, если питомец окажется пугливым?", "", state.timidPet, viewModel::onTimidPetChange, icon = Icons.Default.SentimentDissatisfied),
+            Question.Text("Что вы будете делать, если питомец долго адаптируется?", "", state.adaptation, viewModel::onAdaptationChange, icon = Icons.Default.AccessTime),
+            Question.YesNo("Готовы ли вы заниматься воспитанием и адаптацией питомца?",
+                state.willingToTrain, viewModel::onWillingToTrainChange, icon = Icons.Default.School),
+            Question.Text("Что вы будете делать при изменении жизненных обстоятельств?", "", state.lifeChanges, viewModel::onLifeChangesChange, icon = Icons.Default.TrendingUp),
+            Question.Text("Есть ли что-то, что может помешать заботе о питомце в ближайший год?", "", state.obstacles, viewModel::onObstaclesChange, icon = Icons.Default.Block)
+        ),
+        SectionInfo("Безопасность", "Меры безопасности", Icons.Default.Lock) to listOf(
+            Question.CheckboxGroup("Установлены ли у вас:",
+                listOf("Сетки на окнах", "Безопасные балконы", "Ограждения (для дома)"),
+                state.safetyMeasures, viewModel::onSafetyMeasuresChange, icon = Icons.Default.Lock),
+            Question.CheckboxGroup("Готовы ли вы:",
+                listOf("Стерилизовать питомца (если нужно)", "Соблюдать рекомендации приюта", "Использовать адресник и поводок"),
+                state.willingTo, viewModel::onWillingToChange, icon = Icons.Default.ConfirmationNumber),
+            Question.YesNo("Готовы ли вы поддерживать связь после пристройства?",
+                state.maintainContact, viewModel::onMaintainContactChange, icon = Icons.Default.Email)
+        ),
+        SectionInfo("Эмоциональная часть", "Ваши мотивы", Icons.Default.Favorite) to listOf(
+            Question.Text("Что для вас значит \"ответственный хозяин\"?", "", state.responsibleOwner, viewModel::onResponsibleOwnerChange, icon = Icons.Default.Favorite),
+            Question.Text("Как вы представляете жизнь с питомцем?", "", state.lifeWithPet, viewModel::onLifeWithPetChange, icon = Icons.Default.Favorite),
+            Question.Text("Почему, по вашему мнению, именно вы станете хорошим хозяином?", "", state.whyGoodOwner, viewModel::onWhyGoodOwnerChange, icon = Icons.Default.Star)
+        )
     )
 
-    val currentSection = sections[step]
-    val currentQuestions = currentSection.second
+    val currentSectionInfo = sections[step].first
+    val currentQuestions = sections[step].second
 
-    if (showConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showConfirmation = false },
-            title = { Text("Завершить опросник?") },
-            text = { Text("Вы уверены, что хотите завершить заполнение опросника? Все данные будут сохранены.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.saveAndFinish(onFinish)
-                    showConfirmation = false
-                }) {
-                    Text("Да, завершить")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showConfirmation = false }) {
-                    Text("Нет")
-                }
-            }
-        )
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Опросник", fontWeight = FontWeight.Bold) },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Background,
-                    titleContentColor = Primary
-                )
-            )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp)
-        ) {
-            // Прогресс бар
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.height(24.dp)
-            ) {
-                LinearProgressIndicator(
-                    progress = { (step + 1).toFloat() / sections.size },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(8.dp),
-                    color = Primary
-                )
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "${step + 1}/${sections.size}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = Primary
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            Text(
-                text = currentSection.first,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Primary
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            // Показываем все вопросы текущей секции
-            Column {
-                currentQuestions.forEachIndexed { index, question ->
-                    when (question) {
-                        is Question.Text -> {
-                            Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = question.value,
-                                onValueChange = question.onValueChange,
-                                placeholder = { Text(question.hint, color = TextSecondary) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = question.singleLine,
-                                minLines = if (question.singleLine) 1 else 3,
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences,
-                                    imeAction = if (index < currentQuestions.size - 1) 
-                                        ImeAction.Next else ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onNext = {
-                                        focusManager.moveFocus(FocusDirection.Next)
-                                    },
-                                    onDone = {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                    }
-                                )
-                            )
-                        }
-                        is Question.Dropdown -> {
-                            Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(8.dp))
-                            var selected by remember(question.value) { mutableStateOf(question.value) }
-                            val onValueChange = question.onValueChange
-                            
-                            OutlinedTextField(
-                                value = selected.ifEmpty { "Выберите вариант" },
-                                onValueChange = { },
-                                label = { Text(question.title) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { /* Показываем диалог выбора */ },
-                                singleLine = true,
-                                readOnly = true,
-                                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) }
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                question.options.take(3).forEach { option ->
-                                    FilterChip(
-                                        selected = selected == option,
-                                        onClick = {
-                                            selected = option
-                                            onValueChange(option)
-                                        },
-                                        label = { Text(option, fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                                if (question.options.size > 3) {
-                                    FilterChip(
-                                        selected = false,
-                                        onClick = { },
-                                        label = { Text("+${question.options.size - 3}", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        enabled = false
-                                    )
-                                }
-                            }
-                        }
-                        is Question.YesNo -> {
-                            Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                FilterChip(
-                                    selected = question.value == "Да",
-                                    onClick = { question.onValueChange("Да") },
-                                    label = { Text("Да") },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                FilterChip(
-                                    selected = question.value == "Нет",
-                                    onClick = { question.onValueChange("Нет") },
-                                    label = { Text("Нет") },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                        is Question.CheckboxGroup -> {
-                            Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(12.dp))
-                            Column {
-                                question.options.forEach { option ->
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                val newSelected = if (option in question.selected) {
-                                                    question.selected - option
-                                                } else {
-                                                    question.selected + option
-                                                }
-                                                question.onValueChange?.invoke(newSelected)
-                                            }
-                                    ) {
-                                        Checkbox(
-                                            checked = option in question.selected,
-                                            onCheckedChange = { isChecked ->
-                                                val newSelected = if (isChecked) {
-                                                    question.selected + option
-                                                } else {
-                                                    question.selected - option
-                                                }
-                                                question.onValueChange?.invoke(newSelected)
-                                            }
-                                        )
-                                        Text(option, modifier = Modifier.padding(start = 8.dp))
-                                    }
-                                }
-                            }
-                        }
-                        is Question.TextArea -> {
-                            Text(question.title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedTextField(
-                                value = question.value,
-                                onValueChange = question.onValueChange,
-                                placeholder = { Text(question.hint, color = TextSecondary) },
-                                modifier = Modifier.fillMaxWidth(),
-                                minLines = question.minLines,
-                                maxLines = question.minLines + 2,
-                                keyboardOptions = KeyboardOptions(
-                                    capitalization = KeyboardCapitalization.Sentences,
-                                    imeAction = if (index < currentQuestions.size - 1) 
-                                        ImeAction.Next else ImeAction.Done
-                                ),
-                                keyboardActions = KeyboardActions(
-                                    onNext = {
-                                        focusManager.moveFocus(FocusDirection.Next)
-                                    },
-                                    onDone = {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                    }
-                                )
-                            )
-                        }
-                    }
-                    
-                    if (index < currentQuestions.size - 1) {
-                        Spacer(Modifier.height(20.dp))
-                    }
-                }
-            }
-
-            if (state.error != null) {
-                Spacer(Modifier.height(16.dp))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = state.error ?: "",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            // Кнопки навигации
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (step > 0) {
-                    OutlinedButton(
-                        onClick = { step-- },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Назад")
-                    }
-                }
-
-                PrimaryButton(
-                    text = if (step == sections.lastIndex) "Завершить" else "Далее",
-                    onClick = {
-                        if (step == sections.lastIndex) {
-                            showConfirmation = true
-                        } else {
-                            step++
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-    
-    // Диалог подтверждения с опцией оценки рисков
     if (showConfirmation) {
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
@@ -500,12 +195,7 @@ fun QuestionnaireScreen(
                                 showRiskAssessment = true
                                 onFinish()
                             },
-                            onRiskAssessed = { result ->
-                                if (result.isFailure) {
-                                    // Даже при ошибке оценки переходим на следующий экран
-                                    onFinish()
-                                }
-                            }
+                            onRiskAssessed = { onFinish() }
                         )
                     }
                 )
@@ -514,9 +204,7 @@ fun QuestionnaireScreen(
                 OutlinedButton(
                     onClick = {
                         showConfirmation = false
-                        viewModel.saveAndFinish {
-                            onFinish()
-                        }
+                        viewModel.saveAndFinish { onFinish() }
                     }
                 ) {
                     Text("Только сохранить")
@@ -524,8 +212,7 @@ fun QuestionnaireScreen(
             }
         )
     }
-    
-    // Отображение оценки рисков
+
     if (showRiskAssessment && riskAssessmentResult != null) {
         AlertDialog(
             onDismissRequest = { 
@@ -551,5 +238,469 @@ fun QuestionnaireScreen(
                 )
             }
         )
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Icon(
+                            currentSectionInfo.icon,
+                            contentDescription = null,
+                            tint = Primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(currentSectionInfo.title, fontWeight = FontWeight.Bold)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Background,
+                    titleContentColor = Primary
+                )
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
+        ) {
+            // Улучшенный прогресс-бар с маркерами секций
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    sections.forEachIndexed { index, (sectionInfo, _) ->
+                        val isCompleted = index < step
+                        val isCurrent = index == step
+                        
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(vertical = 8.dp)
+                        ) {
+                            AnimatedVisibility(
+                                visible = isCompleted || isCurrent,
+                                enter = scaleIn() + fadeIn(),
+                                exit = scaleOut() + fadeOut()
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isCurrent) 24.dp else 16.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(
+                                            when {
+                                                isCurrent -> Primary
+                                                isCompleted -> Primary.copy(alpha = 0.5f)
+                                                else -> TextSecondary.copy(alpha = 0.3f)
+                                            }
+                                        )
+                                )
+                            }
+                            
+                            Spacer(Modifier.height(4.dp))
+                            
+                            Text(
+                                text = "${index + 1}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when {
+                                    isCurrent -> Primary
+                                    isCompleted -> Primary
+                                    else -> TextSecondary.copy(alpha = 0.5f)
+                                },
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                            )
+                        }
+                        
+                        if (index < sections.lastIndex) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(2.dp)
+                                    .padding(horizontal = 4.dp)
+                                    .background(
+                                        when {
+                                            isCompleted -> Primary.copy(alpha = 0.5f)
+                                            else -> TextSecondary.copy(alpha = 0.2f)
+                                        }
+                                    )
+                            )
+                        }
+                    }
+                }
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Шаг ${step + 1} из ${sections.size}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = "${((step + 1) * 100 / sections.size)}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
+                }
+            }
+
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        slideInHorizontally { it } + fadeIn() togetherWith
+                            slideOutHorizontally { -it } + fadeOut()
+                    } else {
+                        slideInHorizontally { -it } + fadeIn() togetherWith
+                            slideOutHorizontally { it } + fadeOut()
+                    }
+                }
+            ) { currentStep ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp)
+                ) {
+                    Text(
+                        text = sections[currentStep].first.description,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+
+                Column {
+                    currentQuestions.forEachIndexed { index, question ->
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = slideInVertically(
+                                initialOffsetY = { 20 },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            ) + fadeIn(animationSpec = tween(300 + index * 50))
+                        ) {
+                            QuestionView(
+                                question = question,
+                                isLastQuestion = index == currentQuestions.size - 1
+                            )
+                        }
+                        
+                        if (index < currentQuestions.size - 1) {
+                            Spacer(Modifier.height(20.dp))
+                        }
+                    }
+                }
+            }
+
+            if (state.error != null) {
+                Spacer(Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = state.error ?: "",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.weight(1f))
+
+            AnimatedContent(
+                targetState = step,
+                transitionSpec = {
+                    slideInHorizontally { it } + fadeIn() togetherWith
+                        slideOutHorizontally { -it } + fadeOut()
+                }
+            ) { currentStep ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (currentStep > 0) {
+                        OutlinedButton(
+                            onClick = { step-- },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = TextSecondary
+                            )
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Назад")
+                        }
+                    }
+
+                    PrimaryButton(
+                        text = if (currentStep == sections.lastIndex) "Завершить" else "Далее",
+                        onClick = {
+                            if (currentStep == sections.lastIndex) {
+                                showConfirmation = true
+                            } else {
+                                step++
+                            }
+                        },
+                        modifier = Modifier.weight(if (currentStep > 0) 1f else 1f)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuestionView(
+    question: Question,
+    isLastQuestion: Boolean
+) {
+    when (question) {
+        is Question.Text -> {
+            QuestionCard(
+                title = question.title,
+                icon = question.icon
+            ) {
+                OutlinedTextField(
+                    value = question.value,
+                    onValueChange = question.onValueChange,
+                    placeholder = { Text(question.hint, color = TextSecondary) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = question.singleLine,
+                    minLines = if (question.singleLine) 1 else 3,
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = if (isLastQuestion) ImeAction.Done else ImeAction.Next
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+        is Question.Dropdown -> {
+            var isExpanded by remember { mutableStateOf(false) }
+            
+            QuestionCard(
+                title = question.title,
+                icon = question.icon
+            ) {
+                ExposedDropdownMenuBox(
+                    expanded = isExpanded,
+                    onExpandedChange = { isExpanded = it },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = question.value.ifEmpty { "Выберите вариант" },
+                        onValueChange = { },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        singleLine = true,
+                        readOnly = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Primary,
+                            unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f)
+                        ),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(
+                                expanded = isExpanded
+                            )
+                        }
+                    )
+                    
+                    ExposedDropdownMenu(
+                        expanded = isExpanded,
+                        onDismissRequest = { isExpanded = false }
+                    ) {
+                        question.options.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    question.onValueChange(option)
+                                    isExpanded = false
+                                },
+                                leadingIcon = {
+                                    if (question.value == option) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = Primary)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        is Question.CheckboxGroup -> {
+            QuestionCard(
+                title = question.title,
+                icon = question.icon
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    question.options.forEach { option ->
+                        val isSelected = question.selectedValues.contains(option)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isSelected) {
+                                        question.onValueChange(question.selectedValues - option)
+                                    } else {
+                                        question.onValueChange(question.selectedValues + option)
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = {
+                                    if (isSelected) {
+                                        question.onValueChange(question.selectedValues - option)
+                                    } else {
+                                        question.onValueChange(question.selectedValues + option)
+                                    }
+                                },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Primary,
+                                    uncheckedColor = TextSecondary
+                                )
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = option,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.onSurface else TextSecondary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        is Question.YesNo -> {
+            QuestionCard(
+                title = question.title,
+                icon = question.icon
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val isSelectedYes = question.value == "Да"
+                    val isSelectedNo = question.value == "Нет"
+                    
+                    val buttonColorsYes = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (isSelectedYes) Primary else TextSecondary,
+                        containerColor = if (isSelectedYes) Primary.copy(alpha = 0.08f) else Color.Transparent
+                    )
+                    
+                    OutlinedButton(
+                        onClick = { question.onValueChange("Да") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(
+                                if (isSelectedYes) Modifier.border(
+                                    width = 2.dp,
+                                    color = Primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) else Modifier
+                            ),
+                        colors = buttonColorsYes,
+                        shape = RoundedCornerShape(12.dp),
+                        border = null // Убираем стандартную рамку
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Да", fontWeight = if (isSelectedYes) FontWeight.Bold else FontWeight.Normal)
+                    }
+                    
+                    val buttonColorsNo = ButtonDefaults.outlinedButtonColors(
+                        contentColor = if (isSelectedNo) Primary else TextSecondary,
+                        containerColor = if (isSelectedNo) Primary.copy(alpha = 0.08f) else Color.Transparent
+                    )
+                    
+                    OutlinedButton(
+                        onClick = { question.onValueChange("Нет") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(
+                                if (isSelectedNo) Modifier.border(
+                                    width = 2.dp,
+                                    color = Primary,
+                                    shape = RoundedCornerShape(12.dp)
+                                ) else Modifier
+                            ),
+                        colors = buttonColorsNo,
+                        shape = RoundedCornerShape(12.dp),
+                        border = null // Убираем стандартную рамку
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Нет", fontWeight = if (isSelectedNo) FontWeight.Bold else FontWeight.Normal)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuestionCard(
+    title: String,
+    icon: ImageVector?,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (icon != null) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
     }
 }

@@ -71,6 +71,7 @@ dependencies {
 
     // Compose
     implementation(libs.compose.material3)
+    implementation(libs.compose.material.iconsExtended)
     implementation(libs.coil.compose)
 
     // Coroutines
