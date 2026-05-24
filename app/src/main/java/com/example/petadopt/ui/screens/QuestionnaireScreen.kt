@@ -72,7 +72,6 @@ sealed class Question {
 
 data class SectionInfo(
     val title: String,
-    val description: String,
     val icon: ImageVector
 )
 
@@ -84,6 +83,12 @@ fun QuestionnaireScreen(
 ) {
     val state by viewModel.state.collectAsState()
     var step by remember { mutableStateOf(0) }
+    val scrollState = rememberScrollState()
+    
+    // Скроллим к верху при изменении шага
+    LaunchedEffect(step) {
+        scrollState.scrollTo(0)
+    }
     var showConfirmation by remember { mutableStateOf(false) }
     var showRiskAssessment by remember { mutableStateOf(false) }
     var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
@@ -95,17 +100,17 @@ fun QuestionnaireScreen(
     }
 
     val sections = listOf(
-        SectionInfo("Основная информация", "Расскажите о себе", Icons.Default.Person) to listOf(
-            Question.Text("Как вас зовут?", "Ваше имя", state.name, viewModel::onNameChange, icon = Icons.Default.Person),
-            Question.Text("Сколько вам лет?", "Возраст", state.age, viewModel::onAgeChange, icon = Icons.Default.CalendarToday),
+        SectionInfo("Основная информация", Icons.Default.Person) to listOf(
+            Question.Text("Как вас зовут?", "", state.name, viewModel::onNameChange, icon = Icons.Default.Person),
+            Question.Text("Сколько вам лет?", "", state.age, viewModel::onAgeChange, icon = Icons.Default.CalendarToday),
             Question.Dropdown("В каком городе вы живёте?",
                 listOf("Москва", "Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Другой"),
                 state.city, viewModel::onCityChange, icon = Icons.Default.LocationOn),
-            Question.Text("Чем вы занимаетесь?", "Работа / учёба", state.occupation, viewModel::onOccupationChange, icon = Icons.Default.Work),
-            Question.Text("Ваш номер телефона", "+7 (___) ___-__-__", state.phone, viewModel::onPhoneChange, singleLine = false, icon = Icons.Default.Phone),
-            Question.Text("Ваш Email", "example@mail.ru", state.email, viewModel::onEmailChange, singleLine = false, icon = Icons.Default.Email)
+            Question.Text("Чем вы занимаетесь?", "", state.occupation, viewModel::onOccupationChange, icon = Icons.Default.Work),
+            Question.Text("Ваш номер телефона", "", state.phone, viewModel::onPhoneChange, singleLine = false, icon = Icons.Default.Phone),
+            Question.Text("Ваш Email", "", state.email, viewModel::onEmailChange, singleLine = false, icon = Icons.Default.Email)
         ),
-        SectionInfo("Жилищные условия", "Ваши условия проживания", Icons.Default.Home) to listOf(
+        SectionInfo("Жилищные условия", Icons.Default.Home) to listOf(
             Question.Dropdown("Где вы живёте?",
                 listOf("Квартира", "Частный дом", "Съёмное жильё", "Другое"),
                 state.housingType, viewModel::onHousingTypeChange, icon = Icons.Default.Home),
@@ -118,17 +123,17 @@ fun QuestionnaireScreen(
                 state.familyAgreement, viewModel::onFamilyAgreementChange, icon = Icons.Default.Person),
             Question.YesNo("Есть ли у вас дети?",
                 state.hasChildren, viewModel::onHasChildrenChange, icon = Icons.Default.Person),
-            Question.Text("Если да — какого возраста?", "Возраст детей", state.childrenAge, viewModel::onChildrenAgeChange, icon = Icons.Default.Person),
+            Question.Text("Если да — какого возраста?", "", state.childrenAge, viewModel::onChildrenAgeChange, icon = Icons.Default.Person),
             Question.YesNo("Есть ли у вас другие животные?",
                 state.hasOtherAnimals, viewModel::onHasOtherAnimalsChange, icon = Icons.Default.Pets),
-            Question.Text("Если да — то какие?", "Виды животных", state.otherAnimals, viewModel::onOtherAnimalsChange, icon = Icons.Default.Pets),
-            Question.Text("Сколько часов в день питомец будет оставаться один?", "Часы", state.hoursAlone, viewModel::onHoursAloneChange, icon = Icons.Default.AccessTime),
-            Question.Text("Кто будет ухаживать за питомцем во время вашего отсутствия?", "Контактное лицо", state.caretaker, viewModel::onCaretakerChange, icon = Icons.Default.PersonAdd)
+            Question.Text("Если да — то какие?", "", state.otherAnimals, viewModel::onOtherAnimalsChange, icon = Icons.Default.Pets),
+            Question.Text("Сколько часов в день питомец будет оставаться один?", "", state.hoursAlone, viewModel::onHoursAloneChange, icon = Icons.Default.AccessTime),
+            Question.Text("Кто будет ухаживать за питомцем во время вашего отсутствия?", "", state.caretaker, viewModel::onCaretakerChange, icon = Icons.Default.PersonAdd)
         ),
-        SectionInfo("Опыт с животными", "Ваш опыт ухода", Icons.Default.Pets) to listOf(
+        SectionInfo("Опыт с животными", Icons.Default.Pets) to listOf(
             Question.YesNo("Были ли у вас раньше питомцы?",
                 state.hadPetsBefore, viewModel::onHadPetsBeforeChange, icon = Icons.Default.Star),
-            Question.Text("Что с ними сейчас?", "Статус прошлых питомцев", state.petsNow, viewModel::onPetsNowChange, icon = Icons.Default.Info),
+            Question.Text("Что с ними сейчас?", "", state.petsNow, viewModel::onPetsNowChange, icon = Icons.Default.Info),
             Question.YesNo("Есть ли у вас опыт ухода за собаками?",
                 state.experienceDogs, viewModel::onExperienceDogsChange, icon = Icons.Default.Pets),
             Question.YesNo("Есть ли у вас опыт ухода за кошками?",
@@ -137,7 +142,7 @@ fun QuestionnaireScreen(
                 state.experienceSpecialNeeds, viewModel::onExperienceSpecialNeedsChange, icon = Icons.Default.Accessibility),
             Question.Text("Почему вы решили взять питомца именно сейчас?", "", state.reasonNow, viewModel::onReasonNowChange, icon = Icons.Default.Lightbulb)
         ),
-        SectionInfo("Ответственность", "Готовность к заботе", Icons.Default.Favorite) to listOf(
+        SectionInfo("Ответственность", Icons.Default.Favorite) to listOf(
             Question.CheckboxGroup("Понимаете ли вы, что питомцу потребуется:",
                 listOf("Время", "Внимание", "Обучение", "Ветеринарная помощь"),
                 state.understandsNeeds, viewModel::onUnderstandsNeedsChange, icon = Icons.Default.Notifications),
@@ -153,7 +158,7 @@ fun QuestionnaireScreen(
             Question.Text("Что вы будете делать при изменении жизненных обстоятельств?", "", state.lifeChanges, viewModel::onLifeChangesChange, icon = Icons.Default.TrendingUp),
             Question.Text("Есть ли что-то, что может помешать заботе о питомце в ближайший год?", "", state.obstacles, viewModel::onObstaclesChange, icon = Icons.Default.Block)
         ),
-        SectionInfo("Безопасность", "Меры безопасности", Icons.Default.Lock) to listOf(
+        SectionInfo("Безопасность", Icons.Default.Lock) to listOf(
             Question.CheckboxGroup("Установлены ли у вас:",
                 listOf("Сетки на окнах", "Безопасные балконы", "Ограждения (для дома)"),
                 state.safetyMeasures, viewModel::onSafetyMeasuresChange, icon = Icons.Default.Lock),
@@ -163,12 +168,12 @@ fun QuestionnaireScreen(
             Question.YesNo("Готовы ли вы поддерживать связь после пристройства?",
                 state.maintainContact, viewModel::onMaintainContactChange, icon = Icons.Default.Email)
         ),
-        SectionInfo("Эмоциональная часть", "Ваши мотивы", Icons.Default.Favorite) to listOf(
+        SectionInfo("Ответственность", Icons.Default.Favorite) to listOf(
             Question.Text("Что для вас значит \"ответственный хозяин\"?", "", state.responsibleOwner, viewModel::onResponsibleOwnerChange, icon = Icons.Default.Favorite),
             Question.Text("Как вы представляете жизнь с питомцем?", "", state.lifeWithPet, viewModel::onLifeWithPetChange, icon = Icons.Default.Favorite),
             Question.Text("Почему, по вашему мнению, именно вы станете хорошим хозяином?", "", state.whyGoodOwner, viewModel::onWhyGoodOwnerChange, icon = Icons.Default.Star)
         ),
-        SectionInfo("Желаемые питомцы", "Кого хотите взять", Icons.Default.Pets) to listOf(
+        SectionInfo("Желаемые питомцы", Icons.Default.Pets) to listOf(
             Question.CheckboxGroup("Каких питомцев вы хотите взять?",
                 listOf("Собака", "Кошка", "Птица", "Грызуны", "Рыбы", "Рептилии", "Другое"),
                 state.q7_desired_pets, viewModel::onDesiredPetsChange, icon = Icons.Default.Pets)
@@ -304,7 +309,7 @@ fun QuestionnaireScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
             // Улучшенный прогресс-бар с маркерами секций
@@ -408,15 +413,6 @@ fun QuestionnaireScreen(
                         .fillMaxWidth()
                         .padding(vertical = 24.dp)
                 ) {
-                    Text(
-                        text = sections[currentStep].first.description,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
-
-                Column {
                     currentQuestions.forEachIndexed { index, question ->
                         AnimatedVisibility(
                             visible = true,

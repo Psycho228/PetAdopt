@@ -122,7 +122,7 @@ val QuestionnaireState.furnitureDamage: String get() = q4_furniture_damage_plan
 val QuestionnaireState.noiseBehavior: String get() = q4_noise_plan
 val QuestionnaireState.timidPet: String get() = q4_shy_pet_plan
 val QuestionnaireState.adaptation: String get() = q4_long_adaptation_plan
-val QuestionnaireState.willingToTrain: String get() = if (q4_ready_education) "Да" else "Нет"
+val QuestionnaireState.willingToTrain: String get() = if (q4_ready_education) "Да" else ""
 val QuestionnaireState.lifeChanges: String get() = q4_life_changes_plan
 val QuestionnaireState.obstacles: String get() = q4_obstacles_next_year
 
@@ -133,7 +133,7 @@ val QuestionnaireState.willingTo: List<String>
         if (q5_ready_recommendations) add("Соблюдать рекомендации приюта")
         if (q5_ready_tracker) add("Использовать адресник и поводок")
     }
-val QuestionnaireState.maintainContact: String get() = if (q5_ready_keep_contact) "Да" else "Нет"
+val QuestionnaireState.maintainContact: String get() = if (q5_ready_keep_contact) "Да" else ""
 
 val QuestionnaireState.responsibleOwner: String get() = q6_responsible_owner_meaning
 val QuestionnaireState.lifeWithPet: String get() = q6_life_with_pet_vision
@@ -225,26 +225,7 @@ fun QuestionnaireState.validateSection(sectionIndex: Int): ValidationResult {
             }
         }
         3 -> { // Раздел 4: Ответственность и готовность
-            val understandsNeeds = buildList {
-                if (q4_understand_time) add("Время")
-                if (q4_understand_attention) add("Внимание")
-                if (q4_understand_training) add("Обучение")
-                if (q4_understand_vet_care) add("Ветеринарная помощь")
-            }
-            if (understandsNeeds.isEmpty()) {
-                errors.add(ValidationError("q4_understandsNeeds", "Выберите хотя бы один пункт"))
-            }
-            
-            val readyForExpenses = buildList {
-                if (q4_ready_food) add("Корм")
-                if (q4_ready_vet) add("Ветеринара")
-                if (q4_ready_medication) add("Лекарства")
-                if (q4_ready_vaccinations) add("Прививки")
-                if (q4_ready_grooming) add("Груминг")
-            }
-            if (readyForExpenses.isEmpty()) {
-                errors.add(ValidationError("q4_readyForExpenses", "Выберите хотя бы один пункт"))
-            }
+            // Проверки на обязательность чекбоксов удалены - теперь они не обязательны
             
             if (q4_furniture_damage_plan.isBlank()) {
                 errors.add(ValidationError("q4_furniture_damage_plan", "Опишите ваши действия"))
@@ -258,11 +239,6 @@ fun QuestionnaireState.validateSection(sectionIndex: Int): ValidationResult {
             if (q4_long_adaptation_plan.isBlank()) {
                 errors.add(ValidationError("q4_long_adaptation_plan", "Опишите ваши действия"))
             }
-            if (q4_ready_education) {
-                // Если "Да", то ок, если "Нет" или пусто - ошибка
-            } else {
-                // Можно не требовать, но лучше спросить
-            }
             if (q4_life_changes_plan.isBlank()) {
                 errors.add(ValidationError("q4_life_changes_plan", "Опишите ваши действия"))
             }
@@ -271,21 +247,10 @@ fun QuestionnaireState.validateSection(sectionIndex: Int): ValidationResult {
             }
         }
         4 -> { // Раздел 5: Безопасность
-            if (q5_safety_measures.isEmpty()) {
-                errors.add(ValidationError("q5_safety_measures", "Выберите хотя бы один пункт"))
-            }
-            // Можно добавить проверку на обязательные меры безопасности
+            // Проверки на обязательность чекбоксов удалены - теперь они не обязательны
         }
         5 -> { // Раздел 6: Эмоциональная часть
-            if (q6_responsible_owner_meaning.isBlank()) {
-                errors.add(ValidationError("q6_responsible_owner_meaning", "Опишите ваше понимание"))
-            }
-            if (q6_life_with_pet_vision.isBlank()) {
-                errors.add(ValidationError("q6_life_with_pet_vision", "Опишите ваше видение"))
-            }
-            if (q6_why_good_owner.isBlank()) {
-                errors.add(ValidationError("q6_why_good_owner", "Объясните, почему вы хороший хозяин"))
-            }
+            // Проверки на обязательность удалены - теперь эти поля не обязательны
         }
         6 -> { // Раздел 7: Желаемые виды животных
             if (q7_desired_pets.isEmpty()) {
