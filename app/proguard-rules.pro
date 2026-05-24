@@ -1,21 +1,72 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# PetAdopt ProGuard/R8 Rules
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Keep Hilt generated classes
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class * extends dagger.hilt.android.internal.lifecycle.HiltViewModelFactory { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Keep Supabase classes
+-keep class io.github.jan.supabase.** { *; }
+-keep class com.russhwolf.settings.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Keep Ktor classes
+-keep class io.ktor.** { *; }
+
+# Keep AWS SDK classes
+-keep class com.amazonaws.** { *; }
+-keep class software.amazon.awssdk.** { *; }
+
+# Keep data classes (serialization)
+-keep class com.example.petadopt.data.model.** { *; }
+-keep class com.example.petadopt.viewmodel.QuestionnaireState { *; }
+-keep class com.example.petadopt.viewmodel.QuestionnaireAnswer { *; }
+
+# Keep Gson/Kotlinx.serialization
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses
+
+# Keep Jetpack Compose
+-keep class androidx.compose.** { *; }
+-keep class androidx.lifecycle.** { *; }
+
+# Keep kotlinx.serialization
+-keep class kotlinx.serialization.** { *; }
+-keep class kotlinx.serialization.json.** { *; }
+
+# Keep serializers (kotlinx.serialization)
+-keep class com.example.petadopt.**Serializer { *; }
+
+# Keep GigaChat DTOs
+-keep class com.example.petadopt.data.model.GigaChatRiskAssessment { *; }
+-keep class com.example.petadopt.data.model.RiskAssessmentRecord { *; }
+
+# Keep BuildConfig
+-keep class com.example.petadopt.BuildConfig { *; }
+
+# Keep data classes for JSON serialization
+-keep class com.example.petadopt.data.model.Application { *; }
+-keep class com.example.petadopt.data.model.Pet { *; }
+-keep class com.example.petadopt.data.model.User { *; }
+-keep class com.example.petadopt.data.model.QuestionnaireAnswer { *; }
+
+# No warnings for missing classes (optional)
+-dontwarn io.github.jan.supabase.**
+-dontwarn com.russhwolf.settings.**
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn kotlin.coroutines.**
+-dontwarn android.**
+
+# Optimize (optional)
+-optimizations !code/simplification/arithmetic,!field/*,!class/merging/*
+-optimizationpasses 5
+-allowaccessmodification
+
+# Remove logging in release (optional)
+-assumenosideeffects class android.util.Log {
+    public static *** d(...);
+    public static *** v(...);
+    public static *** i(...);
+}

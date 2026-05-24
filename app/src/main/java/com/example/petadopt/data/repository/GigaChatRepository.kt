@@ -143,12 +143,18 @@ class GigaChatRepository @Inject constructor() {
             Log.d(TAG, "GigaChat_AUTH_KEY длина: ${BuildConfig.GIGACHAT_AUTH_KEY.length}")
             val authKey = BuildConfig.GIGACHAT_AUTH_KEY
             
+            // Проверяем, не пустой ли ключ
+            if (authKey.isEmpty()) {
+                throw IllegalStateException("GIGACHAT_AUTH_KEY пустой! Проверьте .env файл")
+            }
+            
             val response = client.post(authUrl) {
                 header("RqUID", java.util.UUID.randomUUID().toString())
                 header("Authorization", "Basic $authKey")
                 header("Content-Type", "application/x-www-form-urlencoded")
                 header("Accept", "application/json")
-                setBody("scope=GIGACHAT_API_PERS")
+                header("X-Client-App", "PetAdopt")
+                setBody("scope=${BuildConfig.GIGACHAT_SCOPE}")
             }
             
             Log.d(TAG, "Ответ OAuth: ${response.status}")
@@ -190,7 +196,8 @@ class GigaChatRepository @Inject constructor() {
            - Возраст: ${answer.q1_age} лет
            - Город: ${answer.q1_city}
            - Профессия: ${answer.q1_occupation}
-           - Контакт: ${answer.q1_contact_method}
+           - Телефон: ${answer.q1_phone}
+           - Email: ${answer.q1_email}
 
         2. Жилищные условия:
            - Тип жилья: ${answer.q2_housing_type}
@@ -236,6 +243,9 @@ class GigaChatRepository @Inject constructor() {
            - Что значит ответственный хозяин: ${answer.q6_responsible_owner_meaning}
            - Видение жизни с питомцем: ${answer.q6_life_with_pet_vision}
            - Почему хороший хозяин: ${answer.q6_why_good_owner}
+
+        7. Желаемые виды животных:
+           - Какие питомцы желаемы: ${answer.q7_desired_pets.joinToString() { it.ifEmpty { "не указано" } }}
 
         **ЗАДАЧА:**
         Оцени риски по шкале от 0 до 100 и верни ответ ТОЛЬКО в формате JSON:
@@ -300,8 +310,8 @@ class GigaChatRepository @Inject constructor() {
     private suspend fun sendChatRequest(jwtToken: String, prompt: String): String {
         Log.d(TAG, "Отправка запроса к GigaChat API...")
         
-        // Пробуем разные модели по очереди
-        val modelsToTry = listOf("GigaChat:2.0", "GigaChat", "GigaChat-Plus", "GigaChat-Pro")
+        // Пробуем модели в приоритетном порядке: сначала Pro, потом остальные
+        val modelsToTry = listOf("GigaChat-Pro", "GigaChat-Plus", "GigaChat:2.0", "GigaChat")
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {

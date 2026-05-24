@@ -139,6 +139,9 @@ CREATE TABLE IF NOT EXISTS public.questionnaire_answers (
     q6_life_with_pet_vision TEXT,
     q6_why_good_owner TEXT,
     
+    -- Раздел 7: Желаемые виды животных
+    q7_desired_pets TEXT[],
+    
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -5,9 +5,16 @@ val QuestionnaireAnswer.name: String get() = q1_full_name
 val QuestionnaireAnswer.age: String get() = q1_age?.toString() ?: "—"
 val QuestionnaireAnswer.city: String get() = q1_city.ifBlank { "—" }
 val QuestionnaireAnswer.occupation: String get() = q1_occupation.ifBlank { "—" }
-val QuestionnaireAnswer.contactMethod: String get() = q1_contact_method.ifBlank { "—" }
+val QuestionnaireAnswer.phone: String get() = q1_phone.ifBlank { "—" }
+val QuestionnaireAnswer.email: String get() = q1_email.ifBlank { "—" }
 
-val QuestionnaireAnswer.housingType: String get() = q2_housing_type.ifBlank { "—" }
+val QuestionnaireAnswer.housingType: String get() = when (q2_housing_type) {
+    "apartment" -> "Квартира"
+    "house" -> "Частный дом"
+    "rented" -> "Съёмное жильё"
+    "other" -> "Другое"
+    else -> q2_housing_type.ifBlank { "—" }
+}
 val QuestionnaireAnswer.petsAllowed: String get() = when (q2_pets_allowed) {
     true -> "Да"
     false -> "Нет"
@@ -59,7 +66,7 @@ val QuestionnaireAnswer.reasonNow: String get() = q3_why_now.ifBlank { "—" }
 
 val QuestionnaireAnswer.understandsNeeds: List<String> get() {
     val list = mutableListOf<String>()
-    if (q4_understand_requirements) list.add("Время")
+    if (q4_understand_time) list.add("Время")
     if (q4_understand_attention) list.add("Внимание")
     if (q4_understand_training) list.add("Обучение")
     if (q4_understand_vet_care) list.add("Ветеринарная помощь")
@@ -86,7 +93,7 @@ val QuestionnaireAnswer.willingToTrain: String get() = when (q4_ready_education)
 val QuestionnaireAnswer.lifeChanges: String get() = q4_life_changes_plan.ifBlank { "—" }
 val QuestionnaireAnswer.obstacles: String get() = q4_obstacles_next_year.ifBlank { "—" }
 
-val QuestionnaireAnswer.safetyMeasures: List<String> get() = q5_safety_measures.ifEmpty { listOf("—") }
+val QuestionnaireAnswer.safetyMeasures: List<String> get() = q5_safety_measures
 val QuestionnaireAnswer.willingTo: List<String> 
     get() = buildList {
         if (q5_ready_neuter) add("Стерилизовать/кастрировать питомца")
@@ -103,3 +110,5 @@ val QuestionnaireAnswer.maintainContact: String get() = when (q5_ready_keep_cont
 val QuestionnaireAnswer.responsibleOwner: String get() = q6_responsible_owner_meaning.ifBlank { "—" }
 val QuestionnaireAnswer.lifeWithPet: String get() = q6_life_with_pet_vision.ifBlank { "—" }
 val QuestionnaireAnswer.whyGoodOwner: String get() = q6_why_good_owner.ifBlank { "—" }
+
+val QuestionnaireAnswer.desiredPets: String get() = q7_desired_pets.joinToString(", ") { it.ifBlank { "—" } }.ifBlank { "—" }

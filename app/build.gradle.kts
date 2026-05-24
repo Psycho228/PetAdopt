@@ -6,6 +6,28 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+import java.io.FileInputStream
+import java.util.Properties
+
+// Загрузка секретов из .env файла
+val envProperties = Properties().apply {
+    val envFile = file("${rootDir}/.env")
+    if (envFile.exists()) {
+        load(FileInputStream(envFile))
+    } else {
+        println("⚠️  Файл .env не найден! Используйте .env.example как шаблон.")
+    }
+}
+
+fun getEnv(key: String, default: String = ""): String {
+    return (envProperties[key] as? String) ?: default
+}
+
+fun getEnvField(key: String, default: String = ""): String {
+    val value = getEnv(key, default)
+    return value.replace("\"", "\\\"")
+}
+
 android {
     namespace = "com.example.petadopt"
 
@@ -32,16 +54,46 @@ android {
         applicationId = "com.example.petadopt"
         minSdk = 24
         targetSdk = 34
-
-        // S3 конфигурация (временно вшиты для проверки)
-        buildConfigField("String", "S3_ACCESS_KEY", "\"N8Z0ZYU4W3IHSGZKBBN5\"")
-        buildConfigField("String", "S3_SECRET_KEY", "\"Yu7Z54MtphmMqXB0zOZSIaqWYCphil1gXOyywWKm\"")
-        buildConfigField("String", "S3_BUCKET_NAME", "\"pet-photos\"")
         
-        // GigaChat конфигурация
-        buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"019e516c-1cd7-7e6a-abb0-cfa756884880\"")
-        buildConfigField("String", "GIGACHAT_SCOPE", "\"GIGACHAT_API_PERS\"")
-        buildConfigField("String", "GIGACHAT_AUTH_KEY", "\"MDE5ZTUxNmMtMWNkNy03ZTZhLWFiYjAtY2ZhNzU2ODg0ODgwOjU2NjM4MzA3LTFhMmUtNDBjNy1iMTc4LWQwOGZhOGZhMWM4Zg==\"")
+        // Секреты загружаются из .env файла
+        buildConfigField("String", "S3_ACCESS_KEY", "\"${getEnvField("S3_ACCESS_KEY", "")}\"")
+        buildConfigField("String", "S3_SECRET_KEY", "\"${getEnvField("S3_SECRET_KEY", "")}\"")
+        buildConfigField("String", "S3_BUCKET_NAME", "\"${getEnvField("S3_BUCKET_NAME", "pet-photos")}\"")
+        buildConfigField("String", "S3_ENDPOINT_URL", "\"${getEnvField("S3_ENDPOINT_URL", "https://s3.regru.cloud")}\"")
+        
+        buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"${getEnvField("GIGACHAT_CLIENT_ID", "")}\"")
+        buildConfigField("String", "GIGACHAT_SCOPE", "\"${getEnvField("GIGACHAT_SCOPE", "GIGACHAT_API_PERS")}\"")
+        buildConfigField("String", "GIGACHAT_AUTH_KEY", "\"${getEnvField("GIGACHAT_AUTH_KEY", "")}\"")
+        
+        buildConfigField("String", "SUPABASE_URL", "\"${getEnvField("SUPABASE_URL", "")}\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${getEnvField("SUPABASE_ANON_KEY", "")}\"")
+        
+        // Проверка наличия секретов при сборке
+        val s3AccessKey = getEnv("S3_ACCESS_KEY", "")
+        val gigaChatClientId = getEnv("GIGACHAT_CLIENT_ID", "")
+        
+        if (s3AccessKey.isEmpty() || gigaChatClientId.isEmpty()) {
+            println("⚠️  ВНИМАНИЕ: Некоторые секреты не найдены в .env файле!")
+            println("   Создайте .env файл на основе .env.example")
+        }
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            // Можно включить signing для release (нужно настроить keystore)
+            // signingConfig = signingConfigs.getByName("debug") // для тестирования
+        }
+        debug {
+            isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
     }
 }
 

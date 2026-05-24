@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -86,6 +87,8 @@ fun QuestionnaireScreen(
     var showConfirmation by remember { mutableStateOf(false) }
     var showRiskAssessment by remember { mutableStateOf(false) }
     var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
+    var currentErrors by remember { mutableStateOf<List<ValidationError>>(emptyList()) }
+    var showErrorDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadAnswers()
@@ -99,7 +102,8 @@ fun QuestionnaireScreen(
                 listOf("Москва", "Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Другой"),
                 state.city, viewModel::onCityChange, icon = Icons.Default.LocationOn),
             Question.Text("Чем вы занимаетесь?", "Работа / учёба", state.occupation, viewModel::onOccupationChange, icon = Icons.Default.Work),
-            Question.Text("Как с вами лучше связаться?", "Телефон / Email", state.contactMethod, viewModel::onContactMethodChange, icon = Icons.Default.Phone)
+            Question.Text("Ваш номер телефона", "+7 (___) ___-__-__", state.phone, viewModel::onPhoneChange, singleLine = false, icon = Icons.Default.Phone),
+            Question.Text("Ваш Email", "example@mail.ru", state.email, viewModel::onEmailChange, singleLine = false, icon = Icons.Default.Email)
         ),
         SectionInfo("Жилищные условия", "Ваши условия проживания", Icons.Default.Home) to listOf(
             Question.Dropdown("Где вы живёте?",
@@ -163,11 +167,42 @@ fun QuestionnaireScreen(
             Question.Text("Что для вас значит \"ответственный хозяин\"?", "", state.responsibleOwner, viewModel::onResponsibleOwnerChange, icon = Icons.Default.Favorite),
             Question.Text("Как вы представляете жизнь с питомцем?", "", state.lifeWithPet, viewModel::onLifeWithPetChange, icon = Icons.Default.Favorite),
             Question.Text("Почему, по вашему мнению, именно вы станете хорошим хозяином?", "", state.whyGoodOwner, viewModel::onWhyGoodOwnerChange, icon = Icons.Default.Star)
+        ),
+        SectionInfo("Желаемые питомцы", "Кого хотите взять", Icons.Default.Pets) to listOf(
+            Question.CheckboxGroup("Каких питомцев вы хотите взять?",
+                listOf("Собака", "Кошка", "Птица", "Грызуны", "Рыбы", "Рептилии", "Другое"),
+                state.q7_desired_pets, viewModel::onDesiredPetsChange, icon = Icons.Default.Pets)
         )
     )
 
     val currentSectionInfo = sections[step].first
     val currentQuestions = sections[step].second
+
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showErrorDialog = false },
+            title = { Text("Заполните обязательные поля", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Text("Пожалуйста, заполните следующие поля:", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Spacer(Modifier.height(8.dp))
+                    currentErrors.forEach { error ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Error, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(error.message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Понятно",
+                    onClick = { showErrorDialog = false }
+                )
+            }
+        )
+    }
 
     if (showConfirmation) {
         AlertDialog(
@@ -453,6 +488,14 @@ fun QuestionnaireScreen(
                     PrimaryButton(
                         text = if (currentStep == sections.lastIndex) "Завершить" else "Далее",
                         onClick = {
+                            // Валидация текущего раздела
+                            val validation = state.validateSection(currentStep)
+                            if (!validation.isValid) {
+                                currentErrors = validation.errors
+                                showErrorDialog = true
+                                return@PrimaryButton
+                            }
+                            
                             if (currentStep == sections.lastIndex) {
                                 showConfirmation = true
                             } else {
@@ -477,23 +520,70 @@ private fun QuestionView(
 ) {
     when (question) {
         is Question.Text -> {
+            var isError by remember { mutableStateOf(false) }
+            var errorMessage by remember { mutableStateOf("") }
+            
             QuestionCard(
                 title = question.title,
                 icon = question.icon
             ) {
                 OutlinedTextField(
                     value = question.value,
-                    onValueChange = question.onValueChange,
+                    onValueChange = { newValue ->
+                        // Ограничение ввода для числовых полей
+                        val filteredValue = when (question.title) {
+                            "Сколько вам лет?" -> newValue.filter { it.isDigit() }
+                            "Сколько часов в день питомец будет оставаться один?" -> newValue.filter { it.isDigit() }
+                            "Если да — какого возраста?" -> newValue.filter { it.isDigit() || it == ',' || it == ' ' }
+                            else -> newValue
+                        }
+                        question.onValueChange(filteredValue)
+                    },
                     placeholder = { Text(question.hint, color = TextSecondary) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = question.singleLine,
                     minLines = if (question.singleLine) 1 else 3,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Sentences,
+                        keyboardType = when (question.title) {
+                            "Сколько вам лет?" -> KeyboardType.Number
+                            "Сколько часов в день питомец будет оставаться один?" -> KeyboardType.Number
+                            "Если да — какого возраста?" -> KeyboardType.Number
+                            else -> KeyboardType.Text
+                        },
                         imeAction = if (isLastQuestion) ImeAction.Done else ImeAction.Next
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    isError = isError,
+                    supportingText = if (isError) {
+                        { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+                    } else null
                 )
+            }
+            
+            // Проверка валидности при изменении значения
+            LaunchedEffect(question.value) {
+                when (question.title) {
+                    "Сколько вам лет?" -> {
+                        val age = question.value.toIntOrNull()
+                        isError = question.value.isNotEmpty() && (age == null || age < 18 || age > 120)
+                        errorMessage = if (isError) "Введите возраст от 18 до 120" else ""
+                    }
+                    "Сколько часов в день питомец будет оставаться один?" -> {
+                        val hours = question.value.toIntOrNull()
+                        isError = question.value.isNotEmpty() && (hours == null || hours < 0 || hours > 24)
+                        errorMessage = if (isError) "Введите часы от 0 до 24" else ""
+                    }
+                    "Если да — какого возраста?" -> {
+                        // Проверка на корректный ввод возрастов
+                        isError = question.value.any { !it.isDigit() && it != ',' && it != ' ' }
+                        errorMessage = if (isError) "Только цифры, запятые и пробелы" else ""
+                    }
+                    else -> {
+                        isError = false
+                        errorMessage = ""
+                    }
+                }
             }
         }
         is Question.Dropdown -> {

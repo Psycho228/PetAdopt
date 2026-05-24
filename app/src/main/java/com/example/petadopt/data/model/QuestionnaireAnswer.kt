@@ -12,7 +12,8 @@ data class QuestionnaireAnswer(
     val q1_age: Int? = null,
     val q1_city: String = "",
     val q1_occupation: String = "",
-    val q1_contact_method: String = "",
+    val q1_phone: String = "",
+    val q1_email: String = "",
     
     // Раздел 2: Жилищные условия
     val q2_housing_type: String = "",
@@ -66,6 +67,9 @@ data class QuestionnaireAnswer(
     val q6_life_with_pet_vision: String = "",
     val q6_why_good_owner: String = "",
     
+    // Раздел 7: Желаемые виды животных
+    val q7_desired_pets: List<String> = emptyList(),
+    
     val created_at: String = "",
     val updated_at: String = ""
 )
@@ -75,7 +79,8 @@ val QuestionnaireAnswer.displayName: String get() = q1_full_name
 val QuestionnaireAnswer.displayAge: Int? get() = q1_age
 val QuestionnaireAnswer.displayCity: String get() = q1_city
 val QuestionnaireAnswer.displayOccupation: String get() = q1_occupation
-val QuestionnaireAnswer.displayContactMethod: String get() = q1_contact_method
+val QuestionnaireAnswer.displayPhone: String get() = q1_phone
+val QuestionnaireAnswer.displayEmail: String get() = q1_email
 val QuestionnaireAnswer.displayHousingType: String get() = q2_housing_type
 val QuestionnaireAnswer.displayPetsAllowed: String get() = if (q2_pets_allowed == true) "Да" else if (q2_pets_allowed == false) "Нет" else "Не указано"
 val QuestionnaireAnswer.displayHasChildren: String get() = if (q2_has_children == true) "Да" else if (q2_has_children == false) "Нет" else "Не указано"

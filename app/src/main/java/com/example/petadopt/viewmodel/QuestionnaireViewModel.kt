@@ -67,10 +67,22 @@ class QuestionnaireViewModel @Inject constructor(
 
     // Раздел 1: Основная информация
     fun onNameChange(value: String) = updateState { copy(q1_full_name = value) }
-    fun onAgeChange(value: String) = updateState { copy(q1_age = value) }
+    fun onAgeChange(value: String) = updateState { 
+        // Разрешаем ввод только цифр
+        if (value.all { it.isDigit() } || value.isEmpty()) {
+            copy(q1_age = value)
+        } else {
+            copy(q1_age = value.filter { it.isDigit() })
+        }
+    }
     fun onCityChange(value: String) = updateState { copy(q1_city = value) }
     fun onOccupationChange(value: String) = updateState { copy(q1_occupation = value) }
-    fun onContactMethodChange(value: String) = updateState { copy(q1_contact_method = value) }
+    fun onPhoneChange(value: String) = updateState { 
+        // Разрешаем ввод цифр, +, пробелов, скобок, тире
+        val filtered = value.filter { it.isDigit() || it == '+' || it == ' ' || it == '(' || it == ')' || it == '-' }
+        copy(q1_phone = filtered)
+    }
+    fun onEmailChange(value: String) = updateState { copy(q1_email = value) }
 
     // Раздел 2: Жилищные условия
     fun onHousingTypeChange(value: String) = updateState { copy(q2_housing_type = value) }
@@ -122,12 +134,25 @@ class QuestionnaireViewModel @Inject constructor(
     fun onSafetyMeasuresChange(value: List<String>) = updateState { 
         copy(q5_safety_measures = value) 
     }
+    fun onWillingToNeuterChange(checked: Boolean) = updateState { copy(q5_ready_neuter = checked) }
+    fun onWillingToRecommendationsChange(checked: Boolean) = updateState { copy(q5_ready_recommendations = checked) }
+    fun onWillingToTrackerChange(checked: Boolean) = updateState { copy(q5_ready_tracker = checked) }
+    fun onWillingToChange(selected: List<String>) = updateState {
+        copy(
+            q5_ready_neuter = selected.contains("Стерилизовать питомца (если нужно)"),
+            q5_ready_recommendations = selected.contains("Соблюдать рекомендации приюта"),
+            q5_ready_tracker = selected.contains("Использовать адресник и поводок")
+        )
+    }
     fun onMaintainContactChange(value: String) = updateState { copy(q5_ready_keep_contact = value == "Да") }
 
     // Раздел 6: Эмоциональная часть
     fun onResponsibleOwnerChange(value: String) = updateState { copy(q6_responsible_owner_meaning = value) }
     fun onLifeWithPetChange(value: String) = updateState { copy(q6_life_with_pet_vision = value) }
     fun onWhyGoodOwnerChange(value: String) = updateState { copy(q6_why_good_owner = value) }
+
+    // Раздел 7: Желаемые виды животных
+    fun onDesiredPetsChange(value: List<String>) = updateState { copy(q7_desired_pets = value) }
 
     private fun updateState(update: QuestionnaireState.() -> QuestionnaireState) {
         _state.value = _state.value.update()
@@ -145,13 +170,38 @@ class QuestionnaireViewModel @Inject constructor(
                 return@launch
             }
 
+            // Вычисляем сводные поля для чекбоксов
+            val understandRequirements = _state.value.q4_understand_time || 
+                _state.value.q4_understand_attention || 
+                _state.value.q4_understand_training || 
+                _state.value.q4_understand_vet_care
+            
+            val readyForExpenses = _state.value.q4_ready_food || 
+                _state.value.q4_ready_vet || 
+                _state.value.q4_ready_medication || 
+                _state.value.q4_ready_vaccinations || 
+                _state.value.q4_ready_grooming
+            
+            // Фильтруем заглушку "—" из списка мер безопасности
+            val safetyMeasuresList = _state.value.q5_safety_measures
+                .filter { it != "—" }
+                .ifEmpty {
+                    // Фоллбэк: собираем из отдельных чекбоксов q5_ready_*
+                    buildList {
+                        if (_state.value.q5_ready_neuter) add("Стерилизовать питомца (если нужно)")
+                        if (_state.value.q5_ready_recommendations) add("Соблюдать рекомендации приюта")
+                        if (_state.value.q5_ready_tracker) add("Использовать адресник и поводок")
+                    }
+                }
+
             val answer = QuestionnaireAnswer(
                 user_id = userId,
                 q1_full_name = _state.value.q1_full_name,
                 q1_age = _state.value.q1_age.toIntOrNull(),
                 q1_city = _state.value.q1_city,
                 q1_occupation = _state.value.q1_occupation,
-                q1_contact_method = _state.value.q1_contact_method,
+                q1_phone = _state.value.q1_phone,
+                q1_email = _state.value.q1_email,
                 q2_housing_type = mapHousingTypeToDb(_state.value.q2_housing_type),
                 q2_pets_allowed = _state.value.q2_pets_allowed.toBooleanFromYesNo(),
                 q2_living_with = _state.value.q2_living_with.split(",").map { it.trim() }.filter { it.isNotEmpty() },
@@ -168,12 +218,12 @@ class QuestionnaireViewModel @Inject constructor(
                 q3_cat_experience = _state.value.q3_cat_experience.toBooleanFromYesNo(),
                 q3_special_needs_experience = _state.value.q3_special_needs_experience.toBooleanFromYesNo(),
                 q3_why_now = _state.value.q3_why_now,
-                q4_understand_requirements = _state.value.q4_understand_requirements,
+                q4_understand_requirements = understandRequirements,
                 q4_understand_time = _state.value.q4_understand_time,
                 q4_understand_attention = _state.value.q4_understand_attention,
                 q4_understand_training = _state.value.q4_understand_training,
                 q4_understand_vet_care = _state.value.q4_understand_vet_care,
-                q4_ready_expenses = _state.value.q4_ready_expenses,
+                q4_ready_expenses = readyForExpenses,
                 q4_ready_food = _state.value.q4_ready_food,
                 q4_ready_vet = _state.value.q4_ready_vet,
                 q4_ready_medication = _state.value.q4_ready_medication,
@@ -186,14 +236,15 @@ class QuestionnaireViewModel @Inject constructor(
                 q4_ready_education = _state.value.q4_ready_education,
                 q4_life_changes_plan = _state.value.q4_life_changes_plan,
                 q4_obstacles_next_year = _state.value.q4_obstacles_next_year,
-                q5_safety_measures = _state.value.q5_safety_measures,
+                q5_safety_measures = safetyMeasuresList,
                 q5_ready_neuter = _state.value.q5_ready_neuter,
                 q5_ready_recommendations = _state.value.q5_ready_recommendations,
                 q5_ready_tracker = _state.value.q5_ready_tracker,
                 q5_ready_keep_contact = _state.value.q5_ready_keep_contact,
                 q6_responsible_owner_meaning = _state.value.q6_responsible_owner_meaning,
                 q6_life_with_pet_vision = _state.value.q6_life_with_pet_vision,
-                q6_why_good_owner = _state.value.q6_why_good_owner
+                q6_why_good_owner = _state.value.q6_why_good_owner,
+                q7_desired_pets = _state.value.q7_desired_pets
             )
 
             try {
@@ -230,13 +281,38 @@ class QuestionnaireViewModel @Inject constructor(
             
             Log.d(TAG, "=== Запуск сохранения опросника и оценки рисков для userId: $userId ===")
 
+            // Вычисляем сводные поля для чекбоксов
+            val understandRequirements = _state.value.q4_understand_time || 
+                _state.value.q4_understand_attention || 
+                _state.value.q4_understand_training || 
+                _state.value.q4_understand_vet_care
+            
+            val readyForExpenses = _state.value.q4_ready_food || 
+                _state.value.q4_ready_vet || 
+                _state.value.q4_ready_medication || 
+                _state.value.q4_ready_vaccinations || 
+                _state.value.q4_ready_grooming
+            
+            // Фильтруем заглушку "—" из списка мер безопасности
+            val safetyMeasuresList = _state.value.q5_safety_measures
+                .filter { it != "—" }
+                .ifEmpty {
+                    // Фоллбэк: собираем из отдельных чекбоксов q5_ready_*
+                    buildList {
+                        if (_state.value.q5_ready_neuter) add("Стерилизовать питомца (если нужно)")
+                        if (_state.value.q5_ready_recommendations) add("Соблюдать рекомендации приюта")
+                        if (_state.value.q5_ready_tracker) add("Использовать адресник и поводок")
+                    }
+                }
+
             val answer = QuestionnaireAnswer(
                 user_id = userId,
                 q1_full_name = _state.value.q1_full_name,
                 q1_age = _state.value.q1_age.toIntOrNull(),
                 q1_city = _state.value.q1_city,
                 q1_occupation = _state.value.q1_occupation,
-                q1_contact_method = _state.value.q1_contact_method,
+                q1_phone = _state.value.q1_phone,
+                q1_email = _state.value.q1_email,
                 q2_housing_type = mapHousingTypeToDb(_state.value.q2_housing_type),
                 q2_pets_allowed = _state.value.q2_pets_allowed.toBooleanFromYesNo(),
                 q2_living_with = _state.value.q2_living_with.split(",").map { it.trim() }.filter { it.isNotEmpty() },
@@ -253,12 +329,12 @@ class QuestionnaireViewModel @Inject constructor(
                 q3_cat_experience = _state.value.q3_cat_experience.toBooleanFromYesNo(),
                 q3_special_needs_experience = _state.value.q3_special_needs_experience.toBooleanFromYesNo(),
                 q3_why_now = _state.value.q3_why_now,
-                q4_understand_requirements = _state.value.q4_understand_requirements,
+                q4_understand_requirements = understandRequirements,
                 q4_understand_time = _state.value.q4_understand_time,
                 q4_understand_attention = _state.value.q4_understand_attention,
                 q4_understand_training = _state.value.q4_understand_training,
                 q4_understand_vet_care = _state.value.q4_understand_vet_care,
-                q4_ready_expenses = _state.value.q4_ready_expenses,
+                q4_ready_expenses = readyForExpenses,
                 q4_ready_food = _state.value.q4_ready_food,
                 q4_ready_vet = _state.value.q4_ready_vet,
                 q4_ready_medication = _state.value.q4_ready_medication,
@@ -271,14 +347,15 @@ class QuestionnaireViewModel @Inject constructor(
                 q4_ready_education = _state.value.q4_ready_education,
                 q4_life_changes_plan = _state.value.q4_life_changes_plan,
                 q4_obstacles_next_year = _state.value.q4_obstacles_next_year,
-                q5_safety_measures = _state.value.q5_safety_measures,
+                q5_safety_measures = safetyMeasuresList,
                 q5_ready_neuter = _state.value.q5_ready_neuter,
                 q5_ready_recommendations = _state.value.q5_ready_recommendations,
                 q5_ready_tracker = _state.value.q5_ready_tracker,
                 q5_ready_keep_contact = _state.value.q5_ready_keep_contact,
                 q6_responsible_owner_meaning = _state.value.q6_responsible_owner_meaning,
                 q6_life_with_pet_vision = _state.value.q6_life_with_pet_vision,
-                q6_why_good_owner = _state.value.q6_why_good_owner
+                q6_why_good_owner = _state.value.q6_why_good_owner,
+                q7_desired_pets = _state.value.q7_desired_pets
             )
 
             try {
@@ -381,7 +458,8 @@ class QuestionnaireViewModel @Inject constructor(
                         q1_age = a.q1_age?.toString() ?: "",
                         q1_city = a.q1_city,
                         q1_occupation = a.q1_occupation,
-                        q1_contact_method = a.q1_contact_method,
+                        q1_phone = a.q1_phone,
+                        q1_email = a.q1_email,
                         q2_housing_type = a.q2_housing_type,
                         q2_pets_allowed = a.q2_pets_allowed.toYesNo(),
                         q2_living_with = a.q2_living_with.joinToString(", "),
@@ -423,7 +501,8 @@ class QuestionnaireViewModel @Inject constructor(
                         q5_ready_keep_contact = a.q5_ready_keep_contact,
                         q6_responsible_owner_meaning = a.q6_responsible_owner_meaning,
                         q6_life_with_pet_vision = a.q6_life_with_pet_vision,
-                        q6_why_good_owner = a.q6_why_good_owner
+                        q6_why_good_owner = a.q6_why_good_owner,
+                        q7_desired_pets = a.q7_desired_pets ?: emptyList()
                     )
                     
                     // Обновляем списки чекбоксов (вычисляются из bool-полей)

@@ -531,7 +531,8 @@ fun FullQuestionnaireDialog(
                 QuestionAnswer("Возраст", questionnaire.age)
                 QuestionAnswer("Город", questionnaire.city)
                 QuestionAnswer("Занятость", questionnaire.occupation)
-                QuestionAnswer("Способ связи", questionnaire.contactMethod)
+                QuestionAnswer("Телефон", questionnaire.phone)
+                QuestionAnswer("Email", questionnaire.email)
                 
                 Spacer(Modifier.height(16.dp))
                 
@@ -581,7 +582,7 @@ fun FullQuestionnaireDialog(
                 
                 // 5. Безопасность
                 SectionTitle("5. Безопасность")
-                QuestionAnswer("Меры безопасности", questionnaire.safetyMeasures.ifEmpty { listOf("—") }.joinToString(", "))
+                QuestionAnswer("Меры безопасности", questionnaire.safetyMeasures.joinToString(", ") { it.ifBlank { "—" } })
                 QuestionAnswer("Готовы к процедурам", questionnaire.willingTo.ifEmpty { listOf("—") }.joinToString(", "))
                 QuestionAnswer("Поддерживать связь", questionnaire.maintainContact)
                 
@@ -592,6 +593,12 @@ fun FullQuestionnaireDialog(
                 QuestionAnswer("Ответственный хозяин", questionnaire.responsibleOwner.ifBlank { "—" })
                 QuestionAnswer("Жизнь с питомцем", questionnaire.lifeWithPet.ifBlank { "—" })
                 QuestionAnswer("Почему вы хороший хозяин", questionnaire.whyGoodOwner.ifBlank { "—" })
+                
+                Spacer(Modifier.height(16.dp))
+                
+                // 7. Желаемые питомцы
+                SectionTitle("7. Желаемые питомцы")
+                QuestionAnswer("Кого хотите взять", questionnaire.desiredPets.ifBlank { "—" })
             }
         },
         confirmButton = {
