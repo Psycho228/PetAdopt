@@ -163,8 +163,11 @@ fun QuestionnaireState.validateSection(sectionIndex: Int): ValidationResult {
             }
             if (q1_phone.isBlank()) {
                 errors.add(ValidationError("q1_phone", "Введите номер телефона"))
-            } else if (!q1_phone.matches(Regex("""^\+?\d{10,15}$"""))) {
-                errors.add(ValidationError("q1_phone", "Некорректный формат номера"))
+            } else {
+                val digitsOnly = q1_phone.replace(Regex("\\D"), "")
+                if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+                    errors.add(ValidationError("q1_phone", "Некорректный формат номера"))
+                }
             }
             if (q1_email.isBlank()) {
                 errors.add(ValidationError("q1_email", "Введите email"))

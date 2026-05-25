@@ -422,7 +422,6 @@ class QuestionnaireViewModel @Inject constructor(
 
             try {
                 val answer = repository.getAnswers()
-                _state.value = _state.value.copy(isLoading = false)
                 
                 answer?.let { a ->
                     // Восстанавливаем списки чекбоксов
@@ -453,7 +452,9 @@ class QuestionnaireViewModel @Inject constructor(
                         if (a.q5_ready_tracker) add("Использовать адресник и поводок")
                     }
                     
+                    // Обновляем state ОДИН РАЗ со всеми данными
                     _state.value = _state.value.copy(
+                        isLoading = false,
                         q1_full_name = a.q1_full_name,
                         q1_age = a.q1_age?.toString() ?: "",
                         q1_city = a.q1_city,
@@ -508,6 +509,8 @@ class QuestionnaireViewModel @Inject constructor(
                     // Обновляем списки чекбоксов (вычисляются из bool-полей)
                     onUnderstandsNeedsChange(understandsNeeds)
                     onReadyForExpensesChange(readyForExpenses)
+                } ?: run {
+                    _state.value = _state.value.copy(isLoading = false)
                 }
             } catch (e: Exception) {
                 _state.value = _state.value.copy(

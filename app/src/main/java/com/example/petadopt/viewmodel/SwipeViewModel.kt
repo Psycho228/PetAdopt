@@ -64,14 +64,21 @@ class SwipeViewModel @Inject constructor(
         viewModelScope.launch {
             val uid = getCurrentUserIdUseCase() ?: return@launch
             try {
-                val liked = getLikedPetsUseCase(uid)
-                val appliedIds = getAppliedPetIdsUseCase(uid)
+                val (liked, appliedIds) = kotlin.run {
+                    val likedResult = getLikedPetsUseCase(uid)
+                    val appliedResult = getAppliedPetIdsUseCase(uid)
+                    Pair(likedResult, appliedResult)
+                }
                 val filteredLiked = liked.filter { it.id !in appliedIds }
                 _likedPets.value = filteredLiked
                 _seenPetIds.clear()
                 _seenPetIds.addAll(filteredLiked.map { it.id })
                 _appliedPetIds.clear()
                 _appliedPetIds.addAll(appliedIds)
+                
+                val allPets = getPetsUseCase()
+                _pets.value = allPets.filter { it.id !in _seenPetIds && it.id !in _appliedPetIds }
+                _currentIndex.value = 0
             } catch (_: Exception) { }
         }
     }
@@ -102,12 +109,14 @@ class SwipeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val uid = getCurrentUserIdUseCase() ?: return@launch
-                val liked = getLikedPetsUseCase(uid)
-                _likedPets.value = liked
+                val (liked, appliedIds) = kotlin.run {
+                    val likedResult = getLikedPetsUseCase(uid)
+                    val appliedResult = getAppliedPetIdsUseCase(uid)
+                    Pair(likedResult, appliedResult)
+                }
+                _likedPets.value = liked.filter { it.id !in appliedIds }
                 _seenPetIds.clear()
                 _seenPetIds.addAll(liked.map { it.id })
-
-                val appliedIds = getAppliedPetIdsUseCase(uid)
                 _appliedPetIds.clear()
                 _appliedPetIds.addAll(appliedIds)
 

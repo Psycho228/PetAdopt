@@ -231,6 +231,7 @@ class SupabaseQuestionnaireRepository @Inject constructor(
             Log.d(TAG, "Questionnaire loaded for user: $uid, result = ${result != null}")
             if (result != null) {
                 Log.d(TAG, "Questionnaire data: q1_full_name = ${result.q1_full_name}, user_id = ${result.user_id}")
+                Log.d(TAG, "Questionnaire data: q1_phone = '${result.q1_phone}', q1_email = '${result.q1_email}'")
             }
             result
         } catch (e: Exception) {

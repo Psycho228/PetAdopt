@@ -145,6 +145,7 @@ fun QuestionnaireScreen(
         viewModel.loadAnswers()
     }
 
+    // Создаём вопросы напрямую — они будут обновляться при изменении state
     val sections = listOf(
         SectionInfo("Основная информация", Icons.Default.Person) to listOf(
             Question.Text("Как вас зовут?", "", state.name, viewModel::onNameChange, icon = Icons.Default.Person),
@@ -279,9 +280,8 @@ fun QuestionnaireScreen(
                             onSuccess = { assessment ->
                                 riskAssessmentResult = assessment
                                 showRiskAssessment = true
-                                onFinish()
                             },
-                            onRiskAssessed = { onFinish() }
+                            onRiskAssessed = {}
                         )
                     }
                 )
@@ -320,6 +320,7 @@ fun QuestionnaireScreen(
                     onClick = {
                         showRiskAssessment = false
                         riskAssessmentResult = null
+                        onFinish()
                     }
                 )
             }
@@ -566,6 +567,16 @@ private fun QuestionView(
             var errorMessage by remember { mutableStateOf("") }
             // Для поля телефона храним TextFieldValue с позицией курсора
             val phoneState = remember { mutableStateOf(TextFieldValue()) }
+            
+            // Синхронизация phoneState с question.value при загрузке данных
+            LaunchedEffect(question.value) {
+                if (question.isPhoneNumber && question.value.isNotEmpty()) {
+                    phoneState.value = TextFieldValue(
+                        text = question.value,
+                        selection = TextRange(question.value.length)
+                    )
+                }
+            }
             
             QuestionCard(
                 title = question.title,
