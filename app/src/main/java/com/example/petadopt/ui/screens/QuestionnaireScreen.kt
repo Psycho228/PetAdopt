@@ -138,6 +138,7 @@ fun QuestionnaireScreen(
     var showConfirmation by remember { mutableStateOf(false) }
     var showRiskAssessment by remember { mutableStateOf(false) }
     var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
+    var isLoadingRisk by remember { mutableStateOf(false) }
     var currentErrors by remember { mutableStateOf<List<ValidationError>>(emptyList()) }
     var showErrorDialog by remember { mutableStateOf(false) }
 
@@ -276,12 +277,18 @@ fun QuestionnaireScreen(
                     text = "Сохранить и оценить",
                     onClick = {
                         showConfirmation = false
+                        isLoadingRisk = true
                         viewModel.saveWithRiskAssessment(
                             onSuccess = { assessment ->
+                                isLoadingRisk = false
                                 riskAssessmentResult = assessment
                                 showRiskAssessment = true
                             },
-                            onRiskAssessed = {}
+                            onRiskAssessed = { result ->
+                                if (result.isFailure) {
+                                    isLoadingRisk = false
+                                }
+                            }
                         )
                     }
                 )
@@ -307,11 +314,13 @@ fun QuestionnaireScreen(
             },
             title = { Text("Результат оценки") },
             text = {
-                riskAssessmentResult?.let { assessment ->
-                    RiskAssessmentCard(
-                        assessment = assessment,
-                        modifier = Modifier.widthIn(max = 400.dp)
-                    )
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    riskAssessmentResult?.let { assessment ->
+                        RiskAssessmentCard(
+                            assessment = assessment,
+                            modifier = Modifier.widthIn(max = 400.dp)
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -324,6 +333,32 @@ fun QuestionnaireScreen(
                     }
                 )
             }
+        )
+    }
+
+    // Индикатор загрузки оценки рисков
+    if (isLoadingRisk) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Оценка рисков") },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(48.dp),
+                        color = Primary
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        "Анализирую ответы...",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TextSecondary
+                    )
+                }
+            },
+            confirmButton = { }
         )
     }
 

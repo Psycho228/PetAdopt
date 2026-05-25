@@ -41,7 +41,7 @@ data class OAuthTokenResponse(
 // DTO для запроса к GigaChat
 @Serializable
 data class GigaChatRequest(
-    val model: String = "GigaChat-2-Max",
+    val model: String = "GigaChat-2",
     val messages: List<Message>,
     val temperature: Double = 0.3,
     val max_tokens: Int = 2000
@@ -354,8 +354,8 @@ class GigaChatRepository @Inject constructor() {
     private suspend fun sendChatRequest(jwtToken: String, prompt: String): String {
         Log.d(TAG, "Отправка запроса к GigaChat API...")
         
-        // Пробуем модели в приоритетном порядке: сначала Max/Pro, потом остальные
-        val modelsToTry = listOf("GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat-Pro")
+        // Пытаемся использовать модели по приоритету (от лучшей к базовой)
+        val modelsToTry = listOf("GigaChat-2", "GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-Pro")
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {
