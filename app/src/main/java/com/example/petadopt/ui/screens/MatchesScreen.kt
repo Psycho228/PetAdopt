@@ -32,7 +32,7 @@ import com.example.petadopt.viewmodel.SwipeViewModel
 
 @Composable
 fun MatchesScreen(
-    onPetClick: () -> Unit,
+    onPetClick: (String) -> Unit,
     onBack: () -> Unit,
     onAccount: () -> Unit,
     viewModel: SwipeViewModel = hiltViewModel()
@@ -114,7 +114,7 @@ fun MatchesScreen(
                         pet = pet,
                         onClick = {
                             viewModel.selectPet(pet)
-                            onPetClick()
+                            onPetClick(pet.id)
                         },
                         onRemove = {
                             viewModel.removeLike(pet)

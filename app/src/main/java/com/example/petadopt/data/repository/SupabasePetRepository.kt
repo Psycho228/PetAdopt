@@ -7,6 +7,7 @@ import com.example.petadopt.util.SupabaseConfig
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -275,7 +276,7 @@ class SupabasePetRepository @Inject constructor(
                 put("size", pet.size)
                 put("description", pet.description)
                 put("photo_url", pet.photo_url)
-                put("additional_photos", JsonArray(pet.additional_photos.map { JsonPrimitive(it) }))
+                put("additional_photos", pet.additional_photos?.let { JsonArray(it.map { JsonPrimitive(it) }) } ?: JsonNull)
                 put("breed", pet.breed)
                 put("color", pet.color)
                 if (pet.weight != null) put("weight", pet.weight)
@@ -302,7 +303,7 @@ class SupabasePetRepository @Inject constructor(
                 put("size", pet.size)
                 put("description", pet.description)
                 put("photo_url", pet.photo_url)
-                put("additional_photos", JsonArray(pet.additional_photos.map { JsonPrimitive(it) }))
+                put("additional_photos", pet.additional_photos?.let { JsonArray(it.map { JsonPrimitive(it) }) } ?: JsonNull)
                 put("breed", pet.breed)
                 put("color", pet.color)
                 if (pet.weight != null) put("weight", pet.weight)
@@ -311,12 +312,9 @@ class SupabasePetRepository @Inject constructor(
                 put("is_active", pet.is_active)
             }
             
-            postgrest.from(TABLE_PETS)
-                .update(updateData) {
-                    filter { eq("id", pet.id) }
-                }
-            
-            Log.d(TAG, "Pet updated: ${pet.id}")
+            postgrest.from(TABLE_PETS).update(updateData) {
+                filter { eq("id", pet.id) }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error updating pet: ${e.message}")
             throw Exception("Ошибка обновления питомца: ${e.message}")

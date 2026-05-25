@@ -138,7 +138,7 @@ fun NavGraph() {
 
         composable("matches") {
             MatchesScreen(
-                onPetClick = { navController.navigate("details") },
+                onPetClick = { petId -> navController.navigate("details/$petId") },
                 onBack = { navController.popBackStack() },
                 onAccount = { navController.navigate("account") }
             )

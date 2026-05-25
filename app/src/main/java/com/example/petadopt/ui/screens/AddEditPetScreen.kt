@@ -76,6 +76,10 @@ fun AddEditPetScreen(
     var goodWithKids by remember { mutableStateOf(true) }
     var goodWithPets by remember { mutableStateOf(true) }
     
+    // Теги питомца (максимум 3)
+    var petTraitsInput by remember { mutableStateOf("") }
+    var petTraits by remember { mutableStateOf(emptyList<String>()) }
+    
     // Загрузка данных питомца при редактировании
     LaunchedEffect(petId) {
         if (petId != null) {
@@ -103,6 +107,8 @@ fun AddEditPetScreen(
         isHouseTrained = false // Не хранится в модели Pet
         goodWithKids = true // Не хранится в модели Pet
         goodWithPets = true // Не хранится в модели Pet
+        petTraits = pet.petTraits
+        petTraitsInput = pet.petTraits.joinToString(", ")
     }
 
     // Launcher для выбора изображений
@@ -468,6 +474,67 @@ fun AddEditPetScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            // Теги питомца
+            SectionTitle("Теги")
+            Spacer(Modifier.height(12.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                TextField(
+                    value = petTraitsInput,
+                    onValueChange = { input ->
+                        petTraitsInput = input
+                        // Разбиваем по запятым и фильтруем пустые
+                        petTraits = input
+                            .split(",")
+                            .map { it.trim() }
+                            .filter { it.isNotBlank() }
+                            .take(3) // Максимум 3 тега
+                    },
+                    label = { Text("Теги (через запятую, максимум 3)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    supportingText = {
+                        val count = petTraits.count()
+                        Text(
+                            text = "$count / 3 тегов",
+                            color = if (count > 3) MaterialTheme.colorScheme.error else TextSecondary
+                        )
+                    },
+                    enabled = petTraits.count() < 3 || petTraitsInput.split(",").map { it.trim() }.filter { it.isNotBlank() }.count() == petTraits.count()
+                )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                // Отображение выбранных тегов
+                if (petTraits.isNotEmpty()) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        petTraits.forEach { trait ->
+                            FilterChip(
+                                selected = true,
+                                onClick = {
+                                    // Удаление тега по клику
+                                    petTraitsInput = petTraitsInput.removePrefix("$trait,").removePrefix("$trait ").removeSuffix(", $trait").removeSuffix(", $trait").removeSuffix(",")
+                                    petTraits = petTraitsInput
+                                        .split(",")
+                                        .map { it.trim() }
+                                        .filter { it.isNotBlank() }
+                                        .take(3)
+                                },
+                                label = { Text(trait) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Primary.copy(alpha = 0.2f),
+                                    selectedLabelColor = Primary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
             // Описание
             SectionTitle("Описание")
             Spacer(Modifier.height(12.dp))
@@ -548,6 +615,7 @@ fun AddEditPetScreen(
                             description = petDescription,
                             photo_url = mainImageUrl,
                             additional_photos = additionalPhotos,
+                            traits = petTraits.ifEmpty { null },
                             is_neutered = isSterilized,
                             has_vaccination = isVaccinated,
                             weight = null,

@@ -28,6 +28,7 @@ fun PetCard(
     age: String,
     description: String,
     imageUrl: String,
+    traits: List<String> = emptyList(),
     offsetX: Float = 0f
 ) {
     val cardShape = RoundedCornerShape(24.dp)
@@ -142,10 +143,16 @@ fun PetCard(
 
             Spacer(Modifier.height(12.dp))
 
-            // Тег-чипсы (пример)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PetTag(text = "Дружелюбный")
-                PetTag(text = "Активный")
+            // Теги питомца
+            if (traits.isNotEmpty()) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    traits.take(3).forEach { trait ->
+                        PetTag(text = trait)
+                    }
+                }
             }
         }
     }

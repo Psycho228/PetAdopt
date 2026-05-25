@@ -109,6 +109,7 @@ fun SwipeScreen(
                         age = currentPet.age.toString(),
                         description = currentPet.description,
                         imageUrl = displayImage,
+                        traits = currentPet.petTraits,
                         offsetX = offsetX
                     )
                 }
