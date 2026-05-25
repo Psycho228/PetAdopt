@@ -41,7 +41,7 @@ data class OAuthTokenResponse(
 // DTO для запроса к GigaChat
 @Serializable
 data class GigaChatRequest(
-    val model: String = "GigaChat-Pro",
+    val model: String = "GigaChat-2-Max",
     val messages: List<Message>,
     val temperature: Double = 0.3,
     val max_tokens: Int = 2000
@@ -191,61 +191,104 @@ class GigaChatRepository @Inject constructor() {
 
         **ДАННЫЕ КАНДИДАТА:**
         
-        1. Основная информация:
+        1. Основная информация (ПРИОРИТЕТ: средний):
            - Имя: ${answer.q1_full_name}
-           - Возраст: ${answer.q1_age} лет
+           - Возраст: ${answer.q1_age} лет ${if ((answer.q1_age ?: 0) < 18 || (answer.q1_age ?: 99) > 90) "[РИСК: возраст вне оптимального диапазона 18-90]" else ""}
            - Город: ${answer.q1_city}
-           - Профессия: ${answer.q1_occupation}
+           - Профессия: ${answer.q1_occupation} ${if (answer.q1_occupation?.contains("Сбербанк", ignoreCase = true) == true) "[ПРИОРИТЕТ: проверить график работы]" else ""}
            - Телефон: ${answer.q1_phone}
            - Email: ${answer.q1_email}
 
-        2. Жилищные условия:
-           - Тип жилья: ${answer.q2_housing_type}
-           - Животные разрешены: ${answer.q2_pets_allowed}
-           - Живёт с: ${answer.q2_living_with.joinToString()}
-           - Согласие семьи: ${answer.q2_family_consent}
-           - Дети: ${answer.q2_has_children}${if (answer.q2_has_children == true) ", возраст: ${answer.q2_children_ages}" else ""}
-           - Другие животные: ${answer.q2_has_other_pets}${if (answer.q2_has_other_pets == true) ", типы: ${answer.q2_other_pets_types.joinToString()}" else ""}
-           - Часов в день один: ${answer.q2_hours_alone}
-           - Кто ухаживает в отсутствие: ${answer.q2_caregiver}
+        2. Жилищные условия (ПРИОРИТЕТ: ВЫСОКИЙ — критические факторы):
+           - Тип жилья: ${answer.q2_housing_type} ${if (answer.q2_housing_type == "Съёмное жильё") "[РИСК: нестабильность]" else ""}
+           - Животные разрешены: ${if (answer.q2_pets_allowed == true) "Да" else if (answer.q2_pets_allowed == false) "Нет [КРИТИЧЕСКИЙ РИСК: нет разрешения]" else "Не указано"}
+           - Живёт с: ${answer.q2_living_with.joinToString()} ${if (answer.q2_living_with.isEmpty()) "[РИСК: живёт один — нет поддержки]" else ""}
+           - Согласие семьи: ${if (answer.q2_family_consent == true) "Да" else if (answer.q2_family_consent == false) "Нет [КРИТИЧЕСКИЙ РИСК: нет согласия семьи]" else "Не указано"}
+           - Дети: ${if (answer.q2_has_children == true) "Да, возраст: ${answer.q2_children_ages}" else if (answer.q2_has_children == false) "Нет" else "Не указано"}
+           - Другие животные: ${if (answer.q2_has_other_pets == true) "Да, типы: ${answer.q2_other_pets_types.joinToString()}" else if (answer.q2_has_other_pets == false) "Нет" else "Не указано"}
+           - Часов в день питомец один: ${answer.q2_hours_alone}${getHoursAloneRiskHint(answer.q2_hours_alone)}
+           - Кто ухаживает в отсутствие: ${answer.q2_caregiver} ${if (answer.q2_caregiver.isNullOrBlank() || answer.q2_caregiver.length < 3) "[РИСК: не указан уход]" else ""}
 
-        3. Опыт с животными:
-           - Были ли питомцы раньше: ${answer.q3_had_pets_before}
-           - Что с ними сейчас: ${answer.q3_what_happened}
-           - Опыт с собаками: ${answer.q3_dog_experience}
-           - Опыт с кошками: ${answer.q3_cat_experience}
-           - Опыт с особенными животными: ${answer.q3_special_needs_experience}
+        3. Опыт с животными (ПРИОРИТЕТ: ВЫСОКИЙ):
+           - Были ли питомцы раньше: ${if (answer.q3_had_pets_before == true) "Да" else if (answer.q3_had_pets_before == false) "Нет [РИСК: нет опыта]" else "Не указано"}
+           - Что с ними сейчас: ${answer.q3_what_happened} ${if (answer.q3_what_happened.isNotEmpty() && (answer.q3_what_happened.contains("выбросил", ignoreCase = true) || answer.q3_what_happened.contains("отдал", ignoreCase = true))) "[КРИТИЧЕСКИЙ РИСК: негативная история]" else ""}
+           - Опыт с собаками: ${if (answer.q3_dog_experience == true) "Да" else if (answer.q3_dog_experience == false) "Нет" else "Не указано"}
+           - Опыт с кошками: ${if (answer.q3_cat_experience == true) "Да" else if (answer.q3_cat_experience == false) "Нет" else "Не указано"}
+           - Опыт с особенными животными: ${if (answer.q3_special_needs_experience == true) "Да" else if (answer.q3_special_needs_experience == false) "Нет" else "Не указано"}
            - Почему сейчас: ${answer.q3_why_now}
 
-        4. Ответственность и готовность:
-           - Понимает требования: ${answer.q4_understand_requirements}
-           - Готов ко времени: ${answer.q4_understand_time}
-           - Готов к вниманию: ${answer.q4_understand_attention}
-           - Готов к обучению: ${answer.q4_understand_training}
-           - Готов к ветпомощи: ${answer.q4_understand_vet_care}
-           - Потребности: ${answer.understandsNeeds.joinToString()}
-           - План при порче мебели: ${answer.q4_furniture_damage_plan}
-           - План при шуме: ${answer.q4_noise_plan}
-           - План при пугливости: ${answer.q4_shy_pet_plan}
-           - План при долгой адаптации: ${answer.q4_long_adaptation_plan}
-           - Готов к воспитанию: ${answer.q4_ready_education}
+        4. Ответственность и готовность (ПРИОРИТЕТ: ВЫСОКИЙ):
+           - Понимает требования: ${if (answer.q4_understand_requirements) "Да" else "Нет [КРИТИЧЕСКИЙ РИСК: не понимает ответственность]"}
+           - Готов ко времени: ${if (answer.q4_understand_time) "Да" else "Нет"}
+           - Готов к вниманию: ${if (answer.q4_understand_attention) "Да" else "Нет"}
+           - Готов к обучению: ${if (answer.q4_understand_training) "Да" else "Нет"}
+           - Готов к ветпомощи: ${if (answer.q4_understand_vet_care) "Да" else "Нет"}
+           - Потребности: ${answer.understandsNeeds.joinToString()} ${if (answer.understandsNeeds.isEmpty()) "[РИСК: не понимает потребностей]" else ""}
+           - План при порче мебели: ${answer.q4_furniture_damage_plan} ${if (answer.q4_furniture_damage_plan.isNullOrBlank() || answer.q4_furniture_damage_plan.length < 5) "[РИСК: нет плана]" else ""}
+           - План при шуме: ${answer.q4_noise_plan} ${if (answer.q4_noise_plan.isNullOrBlank() || answer.q4_noise_plan.length < 5) "[РИСК: нет плана]" else ""}
+           - План при пугливости: ${answer.q4_shy_pet_plan} ${if (answer.q4_shy_pet_plan.isNullOrBlank() || answer.q4_shy_pet_plan.length < 5) "[РИСК: нет плана]" else ""}
+           - План при долгой адаптации: ${answer.q4_long_adaptation_plan} ${if (answer.q4_long_adaptation_plan.isNullOrBlank() || answer.q4_long_adaptation_plan.length < 5) "[РИСК: нет плана]" else ""}
+           - Готов к воспитанию: ${if (answer.q4_ready_education) "Да" else "Нет [РИСК: не готов к воспитанию]"}
            - Жизненные изменения: ${answer.q4_life_changes_plan}
            - Препятствия: ${answer.q4_obstacles_next_year}
 
-        5. Безопасность:
-           - Меры безопасности: ${answer.q5_safety_measures.ifEmpty { listOf("—") }.joinToString()}
-           - Готов к стерилизации: ${answer.q5_ready_neuter}
-           - Готов к рекомендациям: ${answer.q5_ready_recommendations}
-           - Готов к адреснику: ${answer.q5_ready_tracker}
-           - Готов поддерживать связь: ${answer.q5_ready_keep_contact}
+        5. Безопасность (ПРИОРИТЕТ: ВЫСОКИЙ):
+           - Меры безопасности: ${answer.q5_safety_measures.ifEmpty { listOf("—") }.joinToString()} ${if (answer.q5_safety_measures.isEmpty()) "[РИСК: нет мер безопасности]" else ""}
+           - Готов к стерилизации: ${if (answer.q5_ready_neuter) "Да" else "Нет [РИСК: не готов к стерилизации]"}
+           - Готов к рекомендациям: ${if (answer.q5_ready_recommendations) "Да" else "Нет [РИСК: не готов следовать рекомендациям]"}
+           - Готов к адреснику: ${if (answer.q5_ready_tracker) "Да" else "Нет"}
+           - Готов поддерживать связь: ${if (answer.q5_ready_keep_contact) "Да" else "Нет [РИСК: не готов к обратной связи]"}
 
-        6. Эмоциональная часть:
+        6. Эмоциональная часть (ПРИОРИТЕТ: средний — качественные ответы):
            - Что значит ответственный хозяин: ${answer.q6_responsible_owner_meaning}
            - Видение жизни с питомцем: ${answer.q6_life_with_pet_vision}
            - Почему хороший хозяин: ${answer.q6_why_good_owner}
 
-        7. Желаемые виды животных:
-           - Какие питомцы желаемы: ${answer.q7_desired_pets.joinToString() { it.ifEmpty { "не указано" } }}
+        7. Желаемые виды животных (ПРИОРИТЕТ: низкий — для рекомендации):
+           - Какие питомцы желаемы: ${answer.q7_desired_pets.joinToString { it.ifEmpty { "не указано" } }}
+
+        **ПРАВИЛА ОЦЕНКИ РИСКОВ:**
+        
+        1. **Время питомца в одиночестве (КРИТИЧЕСКИ ВАЖНО):**
+           - 0-4 часов в день — ОТЛИЧНО (снижает риск на 15-20 баллов)
+           - 5-6 часов в день — ХОРОШО (снижает риск на 5-10 баллов)
+           - 7-8 часов в день — ДОПУСТИМО (без изменения)
+           - 9-10 часов в день — ПОВЫШЕННЫЙ РИСК (+10-15 баллов к риску)
+           - 11+ часов в день — ВЫСОКИЙ РИСК (+20-30 баллов к риску, питомец будет страдать)
+           - Чем МЕНЬШЕ времени питомец проводит один, тем ЛУЧШЕ для его психики и здоровья
+
+        2. **Приоритеты обработки полей (от высокого к низкому):**
+           
+           ПРИОРИТЕТ ВЫСОКИЙ (критические факторы):
+           - q2_pets_allowed: без разрешения на животных — автоматический REJECT
+           - q2_family_consent: без согласия семьи — высокий риск
+           - q2_hours_alone: >8 часов — высокий риск (см. правило выше)
+           - q4_understand_requirements: непонимание ответственности — высокий риск
+           - q5_safety_measures: отсутствие мер безопасности — средний/высокий риск
+           - q5_ready_neuter: отказ от стерилизации — высокий риск
+           - q3_had_pets_before: отсутствие опыта — средний риск
+           - q3_what_happened: негативная история (выбросил/отдал) — критический риск
+           
+           ПРИОРИТЕТ СРЕДНИЙ:
+           - q2_housing_type: съёмное жильё — небольшой риск нестабильности
+           - q2_caregiver: отсутствие плана ухода — средний риск
+           - q4_*_plan: отсутствие планов для сложных ситуаций — средний риск
+           - q4_ready_education: неготовность к воспитанию — средний риск
+           - q5_ready_keep_contact: неготовность к обратной связи — средний риск
+           - q1_age: возраст <18 или >90 — небольшой риск
+           
+           ПРИОРИТЕТ НИЗКИЙ:
+           - q6_*: эмоциональные ответы — для qualitative оценки
+           - q7_desired_pets: для рекомендации подходящих питомцев
+
+        3. **Занятость кандидата:**
+           - Если кандидат указывает профессию в крупной организации (Сбербанк и др.) — проверить на ненормированный день
+           - Если кандидат живёт один (q2_living_with пустой) — нет поддержки в уходе
+
+        4. **Опыт с животными:**
+           - Отсутствие опыта (q3_had_pets_before = "Нет") — средний риск, но не критичный
+           - Негативная история (выбросил, отдал, умерли по вине) — КРИТИЧЕСКИЙ РИСК
+           - Отсутствие опыта с конкретным видом (собака/кошка) при желании взять его — средний риск
 
         **ЗАДАЧА:**
         Оцени риски по шкале от 0 до 100 и верни ответ ТОЛЬКО в формате JSON:
@@ -263,45 +306,46 @@ class GigaChatRepository @Inject constructor() {
         }
 
         Критерии оценки:
-        - LOW (0-25): Отличные условия, большой опыт, полная готовность
-        - MEDIUM (26-50): Хорошие условия, есть небольшие риски
-        - HIGH (51-75): Значительные риски, требуется проверка
-        - VERY_HIGH (76-100): Критические риски, не рекомендуется
+        - LOW (0-25): Отличные условия, большой опыт, полная готовность, питомец не будет долго один
+        - MEDIUM (26-50): Хорошие условия, есть небольшие риски (например, 7-8 часов один)
+        - HIGH (51-75): Значительные риски (9-10 часов один, нет опыта, съёмное жильё)
+        - VERY_HIGH (76-100): Критические риски (11+ часов один, нет разрешения, негативная история)
 
-        **ВАЖНО: Обратить особое внимание на:**
-        
-        1. **Занятость кандидата:**
-           - Если кандидат проводит на работе более 8 часов в день — это ВЫСОКИЙ РИСК
-           - Если кандидат работает в ПАО Сбербанк или другой крупной организации с ненормированным днем — риск повышен
-           - Оцените, есть ли у кандидата время на уход, прогулки, внимание к питомцу
-           - Если в ответах есть противоречия (например, "готов к времени", но работает 10+ часов) — укажите в рисках
-
-        2. **Опыт с животными:**
-           - Если кандидат НЕ ИМЕЕТ опыта с животными (q3_had_pets_before = false/null) — это СРЕДНИЙ/ВЫСОКИЙ РИСК
-           - Оцените, понимает ли кандидат специфику ухода за конкретным видом животного
-           - Если кандидат впервые берёт питомца — требуется дополнительная проверка и обучение
-           - Отсутствие опыта с собаками/кошками при желании взять собаку/кошку — риск
-
-        Факторы риска:
+        **Факторы риска (с учётом времени в одиночестве):**
         - Нет согласия семьи
         - Нет разрешения на животных в жилье
-        - Более 8 часов в день один
+        - 9+ часов в день один (чем больше, тем хуже)
         - Нет опыта с животными
         - Не понимает ответственность
         - Нет мер безопасности
         - Непредсказуемые жизненные обстоятельства
-        - Высокая занятость на работе (более 8 часов)
-        - Работа в организации с ненормированным днем
-
-        Положительные факторы:
-        - Опыт с животными
+        - Высокая занятость на работе (9+ часов)
+        - Негативная история с предыдущими питомцами
+        
+        **Положительные факторы:**
+        - Опыт с животными (особенно положительный)
         - Готовность к расходам и ветпомощи
         - Меры безопасности установлены
         - Понимание ответственности
         - Поддержка семьи
+        - 0-6 часов в день один (идеально для питомца)
         - Гибкий график работы или возможность брать питомца на работу
-        - Наличие свободного времени для ухода
+        - Наличие плана на сложные ситуации
         """.trimIndent()
+    }
+    
+    /**
+     * Генерирует подсказку о риске на основе часов в одиночестве
+     */
+    private fun getHoursAloneRiskHint(hours: Int?): String {
+        if (hours == null) return "[РИСК: не указано]"
+        return when {
+            hours <= 4 -> "[ОТЛИЧНО: минимальное время в одиночестве]"
+            hours <= 6 -> "[ХОРОШО: приемлемое время]"
+            hours <= 8 -> "[ДОПУСТИМО: стандартное рабочее время]"
+            hours <= 10 -> "[ПОВЫШЕННЫЙ РИСК: питомец будет проводить много времени один]"
+            else -> "[ВЫСОКИЙ РИСК: 11+ часов в день — питомец будет страдать]"
+        }
     }
     
     /**
@@ -310,8 +354,8 @@ class GigaChatRepository @Inject constructor() {
     private suspend fun sendChatRequest(jwtToken: String, prompt: String): String {
         Log.d(TAG, "Отправка запроса к GigaChat API...")
         
-        // Пробуем модели в приоритетном порядке: сначала Pro, потом остальные
-        val modelsToTry = listOf("GigaChat-Pro", "GigaChat-Plus", "GigaChat:2.0", "GigaChat")
+        // Пробуем модели в приоритетном порядке: сначала Max/Pro, потом остальные
+        val modelsToTry = listOf("GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-2", "GigaChat-Pro")
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {

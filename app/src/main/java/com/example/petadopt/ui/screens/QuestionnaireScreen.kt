@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.petadopt.data.model.GigaChatRiskAssessment
@@ -43,7 +45,9 @@ sealed class Question {
         val value: String,
         val onValueChange: (String) -> Unit,
         val singleLine: Boolean = true,
-        val icon: ImageVector? = null
+        val icon: ImageVector? = null,
+        val keyboardType: KeyboardType = KeyboardType.Text,
+        val isPhoneNumber: Boolean = false
     ) : Question()
 
     data class Dropdown(
@@ -74,6 +78,48 @@ data class SectionInfo(
     val title: String,
     val icon: ImageVector
 )
+
+/**
+ * Форматирует номер телефона в шаблоне +7(***)***-**-**
+ * @param digits только цифры номера (без +7 и других символов)
+ * @return отформатированная строка
+ */
+fun formatPhoneNumber(digits: String): String {
+    // Оставляем только цифры, максимум 11 цифр (7 + 10)
+    val cleaned = digits.filter { it.isDigit() }.take(11)
+    
+    if (cleaned.isEmpty()) return ""
+    
+    val result = StringBuilder("+7")
+    
+    if (cleaned.length > 1) {
+        // Берём цифры после первой (которая должна быть 7 или 8)
+        val rest = cleaned.drop(1)
+        result.append("(")
+        result.append(rest.take(3))
+        if (rest.length >= 3) {
+            result.append(")-")
+            result.append(rest.take(6).drop(3))
+            if (rest.length >= 6) {
+                result.append("-")
+                result.append(rest.take(8).drop(6))
+                if (rest.length >= 8) {
+                    result.append("-")
+                    result.append(rest.drop(8))
+                }
+            }
+        }
+    }
+    
+    return result.toString()
+}
+
+/**
+ * Извлекает только цифры из отформатированного номера телефона
+ */
+fun extractPhoneDigits(formatted: String): String {
+    return formatted.filter { it.isDigit() }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +153,7 @@ fun QuestionnaireScreen(
                 listOf("Москва", "Санкт-Петербург", "Казань", "Новосибирск", "Екатеринбург", "Другой"),
                 state.city, viewModel::onCityChange, icon = Icons.Default.LocationOn),
             Question.Text("Чем вы занимаетесь?", "", state.occupation, viewModel::onOccupationChange, icon = Icons.Default.Work),
-            Question.Text("Ваш номер телефона", "", state.phone, viewModel::onPhoneChange, singleLine = false, icon = Icons.Default.Phone),
+            Question.Text("Ваш номер телефона", "", state.phone, viewModel::onPhoneChange, singleLine = false, icon = Icons.Default.Phone, keyboardType = KeyboardType.Phone, isPhoneNumber = true),
             Question.Text("Ваш Email", "", state.email, viewModel::onEmailChange, singleLine = false, icon = Icons.Default.Email)
         ),
         SectionInfo("Жилищные условия", Icons.Default.Home) to listOf(
@@ -518,43 +564,117 @@ private fun QuestionView(
         is Question.Text -> {
             var isError by remember { mutableStateOf(false) }
             var errorMessage by remember { mutableStateOf("") }
+            // Для поля телефона храним TextFieldValue с позицией курсора
+            val phoneState = remember { mutableStateOf(TextFieldValue()) }
             
             QuestionCard(
                 title = question.title,
                 icon = question.icon
             ) {
-                OutlinedTextField(
-                    value = question.value,
-                    onValueChange = { newValue ->
-                        // Ограничение ввода для числовых полей
-                        val filteredValue = when (question.title) {
-                            "Сколько вам лет?" -> newValue.filter { it.isDigit() }
-                            "Сколько часов в день питомец будет оставаться один?" -> newValue.filter { it.isDigit() }
-                            "Если да — какого возраста?" -> newValue.filter { it.isDigit() || it == ',' || it == ' ' }
-                            else -> newValue
-                        }
-                        question.onValueChange(filteredValue)
-                    },
-                    placeholder = { Text(question.hint, color = TextSecondary) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = question.singleLine,
-                    minLines = if (question.singleLine) 1 else 3,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        keyboardType = when (question.title) {
-                            "Сколько вам лет?" -> KeyboardType.Number
-                            "Сколько часов в день питомец будет оставаться один?" -> KeyboardType.Number
-                            "Если да — какого возраста?" -> KeyboardType.Number
-                            else -> KeyboardType.Text
+                if (question.isPhoneNumber) {
+                    // Особая обработка для телефона с сохранением курсора
+                    OutlinedTextField(
+                        value = phoneState.value,
+                        onValueChange = { newTextFieldValue ->
+                            val newText = newTextFieldValue.text
+                            val oldText = phoneState.value.text
+                            val oldCursorPos = phoneState.value.selection.start
+                            
+                            // Извлекаем цифры из нового и старого текста
+                            val newDigits = newText.filter { it.isDigit() }
+                            val oldDigits = oldText.filter { it.isDigit() }
+                            
+                            // Если текст очистили полностью
+                            if (newDigits.isEmpty()) {
+                                phoneState.value = TextFieldValue(
+                                    text = "",
+                                    selection = TextRange(0)
+                                )
+                                question.onValueChange("")
+                                return@OutlinedTextField
+                            }
+                            
+                            // Определяем, было ли удаление или добавление
+                            val isDeletion = newDigits.length < oldDigits.length
+                            
+                            if (isDeletion) {
+                                // При удалении просто форматируем новые цифры
+                                val formatted = formatPhoneNumber(newDigits)
+                                // Вычисляем новую позицию курсора
+                                val digitsBeforeCursor = oldDigits.take(oldCursorPos - 2).count { it.isDigit() }
+                                val newCursorPos = 2 + digitsBeforeCursor.coerceAtMost(newDigits.length)
+                                
+                                phoneState.value = TextFieldValue(
+                                    text = formatted,
+                                    selection = TextRange(newCursorPos.coerceAtMost(formatted.length))
+                                )
+                                question.onValueChange(formatted)
+                            } else {
+                                // При добавлении - добавляем только новые цифры
+                                val addedDigitCount = newDigits.length - oldDigits.length
+                                if (addedDigitCount > 0 && newDigits.length <= 11) {
+                                    val formatted = formatPhoneNumber(newDigits)
+                                    // Курсор ставим в конец
+                                    phoneState.value = TextFieldValue(
+                                        text = formatted,
+                                        selection = TextRange(formatted.length)
+                                    )
+                                    question.onValueChange(formatted)
+                                } else {
+                                    // Если не добавлялись цифры (например, ввод формата), просто обновляем позицию
+                                    phoneState.value = newTextFieldValue
+                                }
+                            }
                         },
-                        imeAction = if (isLastQuestion) ImeAction.Done else ImeAction.Next
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    isError = isError,
-                    supportingText = if (isError) {
-                        { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
-                    } else null
-                )
+                        placeholder = { Text("7 (___) ___-__-__", color = TextSecondary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = question.singleLine,
+                        minLines = if (question.singleLine) 1 else 3,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            keyboardType = KeyboardType.Phone,
+                            imeAction = if (isLastQuestion) ImeAction.Done else ImeAction.Next
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        isError = isError,
+                        supportingText = if (isError) {
+                            { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+                        } else null
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = question.value,
+                        onValueChange = { newValue ->
+                            // Ограничение ввода для числовых полей
+                            val filteredValue = when (question.title) {
+                                "Сколько вам лет?" -> newValue.filter { it.isDigit() }
+                                "Сколько часов в день питомец будет оставаться один?" -> newValue.filter { it.isDigit() }
+                                "Если да — какого возраста?" -> newValue.filter { it.isDigit() || it == ',' || it == ' ' }
+                                else -> newValue
+                            }
+                            question.onValueChange(filteredValue)
+                        },
+                        placeholder = { Text(question.hint, color = TextSecondary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = question.singleLine,
+                        minLines = if (question.singleLine) 1 else 3,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            keyboardType = when (question.title) {
+                                "Сколько вам лет?" -> KeyboardType.Number
+                                "Сколько часов в день питомец будет оставаться один?" -> KeyboardType.Number
+                                "Если да — какого возраста?" -> KeyboardType.Number
+                                else -> question.keyboardType
+                            },
+                            imeAction = if (isLastQuestion) ImeAction.Done else ImeAction.Next
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        isError = isError,
+                        supportingText = if (isError) {
+                            { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
+                        } else null
+                    )
+                }
             }
             
             // Проверка валидности при изменении значения
