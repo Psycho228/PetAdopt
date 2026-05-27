@@ -166,6 +166,21 @@ object UseCaseModule {
         return UpdateApplicationStatusUseCase(repository)
     }
 
+    @Provides
+    fun provideGetPendingApplicationsUseCase(repository: PetRepository): GetPendingApplicationsUseCase {
+        return GetPendingApplicationsUseCase(repository)
+    }
+
+    @Provides
+    fun provideGetApplicationsForPetUseCase(repository: PetRepository): GetApplicationsForPetUseCase {
+        return GetApplicationsForPetUseCase(repository)
+    }
+
+    @Provides
+    fun provideAutoAcceptApplicationUseCase(repository: PetRepository): AutoAcceptApplicationUseCase {
+        return AutoAcceptApplicationUseCase(repository)
+    }
+
     // Questionnaire UseCases
     @Provides
     fun provideSaveQuestionnaireUseCase(repository: QuestionnaireRepository): SaveQuestionnaireUseCase {

@@ -370,4 +370,34 @@ class SupabaseQuestionnaireRepository @Inject constructor(
             emptyList()
         }
     }
+
+    override suspend fun getQuestionnaireByUserId(userId: String): QuestionnaireAnswer? {
+        return try {
+            val response = postgrest.from(TABLE_QUESTIONNAIRE)
+                .select { filter { eq("user_id", userId) } }
+                .decodeSingleOrNull<QuestionnaireAnswer>()
+            
+            Log.d(TAG, "Questionnaire loaded for user $userId: ${response != null}")
+            response
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting questionnaire for user $userId: ${e.message}")
+            null
+        }
+    }
+
+    override suspend fun getLatestRiskAssessmentByUserId(userId: String): RiskAssessmentRecord? {
+        return try {
+            val response = postgrest.from(TABLE_RISK_ASSESSMENT)
+                .select { filter { eq("user_id", userId) } }
+                .decodeList<RiskAssessmentRecord>()
+            
+            val latest = response.maxByOrNull { it.created_at }
+            
+            Log.d(TAG, "Latest risk assessment loaded for user $userId: ${latest != null}, created_at: ${latest?.created_at}")
+            latest
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting risk assessment for user $userId: ${e.message}")
+            null
+        }
+    }
 }

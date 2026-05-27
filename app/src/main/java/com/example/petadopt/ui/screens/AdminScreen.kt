@@ -321,10 +321,19 @@ fun AdminScreen(
                         uiState.filteredPets,
                         key = { it.id ?: "" }
                     ) { pet ->
+                        val applications = uiState.applicationsByPet[pet.id] ?: emptyList()
+                        val activeApplications = applications.count { it.status == "approved" || it.status == "pending" }
                         PetAdminItem(
                             pet = pet,
-                            onClick = { navController.navigate("admin/editPet/${pet.id}") },
-                            onDelete = { showDeleteDialog = pet.id }
+                            onClick = { 
+                                // Авто-принимаем заявки при первом открытии карточки
+                                if (activeApplications > 0) {
+                                    viewModel.autoAcceptApplications(pet.id ?: return@PetAdminItem)
+                                }
+                                navController.navigate("admin/editPet/${pet.id}")
+                            },
+                            onDelete = { showDeleteDialog = pet.id },
+                            applicationCount = activeApplications
                         )
                     }
 
@@ -415,12 +424,10 @@ fun AdminScreen(
 private fun PetAdminItem(
     pet: Pet,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    applicationCount: Int = 0
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -434,7 +441,12 @@ private fun PetAdminItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            // Левая часть с информацией о питомце (кликабельная)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onClick)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -467,6 +479,34 @@ private fun PetAdminItem(
                             },
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
+                    }
+                    
+                    // Индикатор количества заявок
+                    if (applicationCount > 0) {
+                        Spacer(Modifier.width(4.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = if (applicationCount > 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = if (applicationCount > 0) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Text(
+                                    text = applicationCount.toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (applicationCount > 0) MaterialTheme.colorScheme.onPrimaryContainer else TextSecondary
+                                )
+                            }
+                        }
                     }
                 }
                 
@@ -590,15 +630,16 @@ private fun PetAdminItem(
                 }
             }
 
-            // Кнопки действий
+            // Кнопки действий (некликабельная область)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 12.dp)
             ) {
                 // Кнопка редактирования
                 FilledTonalIconButton(
                     onClick = onClick,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer
@@ -607,14 +648,14 @@ private fun PetAdminItem(
                     Icon(
                         Icons.Default.Edit,
                         contentDescription = "Редактировать",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
                 
                 // Кнопка удаления
                 FilledTonalIconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier.size(48.dp),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.error
@@ -623,7 +664,7 @@ private fun PetAdminItem(
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = "Удалить",
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

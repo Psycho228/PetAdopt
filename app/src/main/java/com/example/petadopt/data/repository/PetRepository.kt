@@ -24,6 +24,8 @@ interface PetRepository {
     suspend fun getUserApplications(userId: String): List<Application>
     suspend fun getAppliedPetIds(userId: String): Set<String>
     suspend fun getPendingApplications(petId: String): List<Application>
+    suspend fun getApplicationsForPet(petId: String): List<Application>
+    suspend fun autoAcceptApplication(applicationId: String): String?
     suspend fun updateApplicationStatus(applicationId: String, status: String)
     
     // Методы для администратора/приюта

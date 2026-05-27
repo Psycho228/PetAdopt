@@ -17,7 +17,9 @@ data class AccountState(
     val riskAssessment: com.example.petadopt.data.model.RiskAssessmentRecord? = null,
     val riskAssessmentHistory: List<com.example.petadopt.data.model.RiskAssessmentRecord> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isAdmin: Boolean = false,
+    val isShelter: Boolean = false
 )
 
 @HiltViewModel
@@ -49,12 +51,16 @@ class AccountViewModel @Inject constructor(
                 val questionnaire = getQuestionnaireUseCase()
                 val riskAssessment = getRiskAssessmentUseCase()
                 val riskHistory = getRiskAssessmentHistoryUseCase()
+                val isAdmin = isCurrentUserAdminUseCase()
+                val isShelter = isCurrentUserShelterUseCase()
 
                 _state.value = _state.value.copy(
                     user = user,
                     questionnaire = questionnaire,
                     riskAssessment = riskAssessment,
                     riskAssessmentHistory = riskHistory,
+                    isAdmin = isAdmin,
+                    isShelter = isShelter,
                     isLoading = false
                 )
             } catch (e: Exception) {

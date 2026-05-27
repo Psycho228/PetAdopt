@@ -21,8 +21,9 @@ import com.example.petadopt.ui.screens.ApplicationScreen
 import com.example.petadopt.ui.screens.MatchesScreen
 import com.example.petadopt.ui.screens.ApplicationsScreen
 import com.example.petadopt.ui.screens.EditProfileScreen
-import com.example.petadopt.ui.screens.AdminScreen
 import com.example.petadopt.ui.screens.AddEditPetScreen
+import com.example.petadopt.ui.screens.PetApplicationsScreen
+import com.example.petadopt.ui.screens.PetApplicationDetailScreen
 import com.example.petadopt.viewmodel.NavViewModel
 import com.example.petadopt.viewmodel.StartDestination
 import com.example.petadopt.viewmodel.SwipeViewModel
@@ -160,7 +161,7 @@ fun NavGraph() {
                 onApplications = { navController.navigate("applications") },
                 onEditProfile = { navController.navigate("edit_profile") },
                 onRetakeQuestionnaire = { navController.navigate("questionnaire") },
-                onAdminPanel = { navController.navigate("admin") }
+                onAdminPanel = { navController.navigate("shelter") }
             )
         }
 
@@ -190,13 +191,7 @@ fun NavGraph() {
             )
         }
 
-        // Админ-панель (перенаправляет в shelter screen)
-        composable("admin") {
-            navController.navigate("shelter") {
-                popUpTo("shelter") { inclusive = false }
-            }
-        }
-
+        // Кабинет приюта / Админ-панель
         composable("shelter") {
             ShelterScreen(navController = navController)
         }
@@ -212,6 +207,46 @@ fun NavGraph() {
             AddEditPetScreen(
                 navController = navController,
                 petId = petId
+            )
+        }
+
+        // Просмотр заявок на питомца
+        composable("admin/applications/{petId}/{petName}") { backStackEntry ->
+            val petId = backStackEntry.arguments?.getString("petId") ?: ""
+            val petName = backStackEntry.arguments?.getString("petName") ?: ""
+            PetApplicationsScreen(
+                navController = navController,
+                petId = petId,
+                petName = petName
+            )
+        }
+
+        // Детальный просмотр заявки
+        composable("admin/application/detail/{applicationId}/{userId}/{userName}/{userEmail}/{petId}/{petName}/{message}/{contactTime}/{status}") { backStackEntry ->
+            val applicationId = backStackEntry.arguments?.getString("applicationId") ?: ""
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val userName = backStackEntry.arguments?.getString("userName") ?: ""
+            val userEmail = backStackEntry.arguments?.getString("userEmail") ?: ""
+            val petId = backStackEntry.arguments?.getString("petId") ?: ""
+            val petName = backStackEntry.arguments?.getString("petName") ?: ""
+            val message = backStackEntry.arguments?.getString("message") ?: ""
+            val contactTime = backStackEntry.arguments?.getString("contactTime") ?: ""
+            val status = backStackEntry.arguments?.getString("status") ?: "pending"
+            
+            val application = com.example.petadopt.data.model.Application(
+                id = applicationId,
+                user_id = userId,
+                user_name = userName,
+                user_email = userEmail,
+                pet_id = petId,
+                pet_name = petName,
+                message = message,
+                contact_time = contactTime,
+                status = status
+            )
+            PetApplicationDetailScreen(
+                navController = navController,
+                application = application
             )
         }
     }

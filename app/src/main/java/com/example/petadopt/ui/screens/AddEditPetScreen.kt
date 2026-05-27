@@ -47,6 +47,7 @@ fun AddEditPetScreen(
     val scrollState = rememberScrollState()
     
     var isEditing by remember { mutableStateOf(petId != null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
     
     // Список выбранных изображений (новые, ещё не загруженные)
     var selectedImages by remember { mutableStateOf(listOf<android.net.Uri>()) }
@@ -671,7 +672,70 @@ fun AddEditPetScreen(
                     )
                 }
             }
+
+            // Кнопка удаления питомца (только при редактировании)
+            if (isEditing && petId != null) {
+                Spacer(Modifier.height(24.dp))
+                OutlinedButton(
+                    onClick = { showDeleteDialog = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        "Удалить",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "Удалить питомца",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
         }
+    }
+
+    // Диалог подтверждения удаления
+    if (showDeleteDialog && petId != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Удалить питомца") },
+            text = { Text("Вы уверены, что хотите удалить этого питомца? Это действие нельзя отменить. Все фотографии будут удалены из хранилища.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deletePet(petId)
+                        showDeleteDialog = false
+                        navController.popBackStack()
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 }
 

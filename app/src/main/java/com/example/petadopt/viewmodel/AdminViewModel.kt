@@ -4,10 +4,14 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.petadopt.data.model.Application
 import com.example.petadopt.data.model.Pet
+import com.example.petadopt.data.model.QuestionnaireAnswer
+import com.example.petadopt.data.model.RiskAssessmentRecord
 import com.example.petadopt.domain.usecase.*
 import com.example.petadopt.data.repository.AuthRepository
 import com.example.petadopt.data.repository.PetRepository
+import com.example.petadopt.data.repository.QuestionnaireRepository
 import com.example.petadopt.domain.usecase.DeleteImageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +33,10 @@ data class AdminUiState(
     val existingImageUrls: List<String> = emptyList(),
     val shelterName: String = "",
     val isShelterAdmin: Boolean = false,
-    val isAdminRole: Boolean = false
+    val isAdminRole: Boolean = false,
+    val applicationsByPet: Map<String, List<Application>> = emptyMap(),
+    val currentQuestionnaire: QuestionnaireAnswer? = null,
+    val currentRiskAssessment: RiskAssessmentRecord? = null
 )
 
 @HiltViewModel
@@ -45,7 +52,12 @@ class AdminViewModel @Inject constructor(
     private val getPetByIdUseCase: GetPetByIdUseCase,
     private val getPetsByShelterUseCase: GetPetsByShelterUseCase,
     private val getUserUseCase: GetUserUseCase,
-    private val searchPetsUseCase: SearchPetsUseCase
+    private val searchPetsUseCase: SearchPetsUseCase,
+    private val getApplicationsForPetUseCase: GetApplicationsForPetUseCase,
+    private val autoAcceptApplicationUseCase: AutoAcceptApplicationUseCase,
+    private val questionnaireRepository: QuestionnaireRepository,
+    private val updateApplicationStatusUseCase: UpdateApplicationStatusUseCase,
+    private val getRiskAssessmentUseCase: GetRiskAssessmentUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -85,12 +97,55 @@ class AdminViewModel @Inject constructor(
                     filteredPets = pets,
                     isLoading = false
                 )
+                // Загружаем заявки для всех питомцев
+                loadApplicationsForPets(pets)
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     error = e.message,
                     isLoading = false
                 )
             }
+        }
+    }
+
+    private fun loadApplicationsForPets(pets: List<Pet>) {
+        viewModelScope.launch {
+            val applicationsMap = mutableMapOf<String, List<Application>>()
+            for (pet in pets) {
+                try {
+                    val applications = getApplicationsForPetUseCase(pet.id ?: continue)
+                    applicationsMap[pet.id] = applications
+                } catch (e: Exception) {
+                    android.util.Log.e("AdminViewModel", "Error loading applications for pet ${pet.id}: ${e.message}")
+                }
+            }
+            _uiState.value = _uiState.value.copy(applicationsByPet = applicationsMap)
+        }
+    }
+
+    fun autoAcceptApplications(petId: String) {
+        viewModelScope.launch {
+            val currentRole = _uiState.value.isAdminRole
+            val shelterId = if (!currentRole) authRepository.currentUserId else null
+            
+            // Получаем все заявки на питомца
+            val applications = _uiState.value.applicationsByPet[petId] ?: emptyList()
+            
+            // Авто-принимаем только pending заявки от пользователей своего приюта (если это shelter)
+            for (application in applications) {
+                if (application.status == "pending") {
+                    // Если это shelter, проверяем, что заявка от пользователя (не админ)
+                    if (!currentRole && shelterId != null) {
+                        // Проверяем, что пользователь не из другого приюта (опционально)
+                        autoAcceptApplicationUseCase(application.id)
+                    } else {
+                        // Admin принимает все заявки
+                        autoAcceptApplicationUseCase(application.id)
+                    }
+                }
+            }
+            // Перезагружаем заявки
+            loadApplicationsForPets(_uiState.value.pets)
         }
     }
 
@@ -276,6 +331,38 @@ class AdminViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = "Ошибка удаления фото: ${e.message}")
+            }
+        }
+    }
+
+    fun loadQuestionnaireForUser(userId: String) {
+        viewModelScope.launch {
+            // Сбрасываем предыдущий опросник и оценку рисков перед загрузкой новых
+            _uiState.value = _uiState.value.copy(currentQuestionnaire = null, currentRiskAssessment = null)
+            try {
+                val questionnaire = questionnaireRepository.getQuestionnaireByUserId(userId)
+                _uiState.value = _uiState.value.copy(currentQuestionnaire = questionnaire)
+                
+                // Загружаем оценку рисков для этого пользователя (не для текущего!)
+                if (questionnaire != null) {
+                    // Используем репозиторий напрямую с правильным userId
+                    val riskAssessment = questionnaireRepository.getLatestRiskAssessmentByUserId(userId)
+                    _uiState.value = _uiState.value.copy(currentRiskAssessment = riskAssessment)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("AdminViewModel", "Error loading questionnaire for user $userId: ${e.message}")
+            }
+        }
+    }
+
+    fun updateApplicationStatus(applicationId: String, status: String) {
+        viewModelScope.launch {
+            try {
+                updateApplicationStatusUseCase(applicationId, status)
+                // Перезагружаем заявки для всех питомцев
+                loadPets()
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = "Ошибка обновления статуса: ${e.message}")
             }
         }
     }

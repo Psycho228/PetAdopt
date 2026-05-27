@@ -42,12 +42,36 @@ fun ShelterScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf("") }
+    
+    // Загружаем питомцы при первом отображении экрана
+    LaunchedEffect(Unit) {
+        viewModel.loadPets()
+    }
+    
+    // Обновляем searchQuery при изменении в ViewModel
+    LaunchedEffect(uiState.searchQuery) {
+        searchQuery = uiState.searchQuery
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
-                    Text("Кабинет приюта", fontWeight = FontWeight.Bold)
+                    Column {
+                        Text(
+                            text = "Кабинет приюта",
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (uiState.shelterName.isNotBlank()) {
+                            Text(
+                                text = uiState.shelterName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Primary,
@@ -55,6 +79,12 @@ fun ShelterScreen(
                     actionIconContentColor = Color.White
                 ),
                 actions = {
+                    // Кнопка поиска
+                    IconButton(onClick = { 
+                        // Фокус на поиск (можно расширить)
+                    }) {
+                        Icon(Icons.Default.Search, contentDescription = "Поиск")
+                    }
                     IconButton(onClick = { showLogoutDialog = true }) {
                         Icon(Icons.Outlined.ExitToApp, contentDescription = "Выйти")
                     }
@@ -72,165 +102,234 @@ fun ShelterScreen(
                 CircularProgressIndicator(color = Primary)
             }
         } else {
-            LazyColumn(
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(bottom = 16.dp)
+                    .padding(padding)
             ) {
-                // Приветствие и статистика
-                item {
-                    Card(
+                // Панель поиска и действий
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 2.dp
+                ) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Primary.copy(alpha = 0.1f)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                            .padding(16.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(CircleShape)
-                                        .background(Primary.copy(alpha = 0.2f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Business,
-                                        contentDescription = null,
-                                        tint = Primary,
-                                        modifier = Modifier.size(32.dp)
-                                    )
+                        // Поиск
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { 
+                                searchQuery = it
+                                viewModel.searchPets(it)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Поиск по имени, породе...") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null)
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotBlank()) {
+                                    IconButton(onClick = { 
+                                        searchQuery = ""
+                                        viewModel.searchPets("")
+                                    }) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                                    }
                                 }
-                                Spacer(Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Добро пожаловать!",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = TextSecondary
-                                    )
-                                    Text(
-                                        text = uiState.shelterName.ifBlank { "Приют" },
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Primary
-                                    )
-                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+
+                        // Кнопки действий
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { viewModel.loadPets() },
+                                modifier = Modifier.weight(1f),
+                                icon = Icons.Default.Refresh
+                            ) {
+                                Text("Обновить")
                             }
-                            
-                            Spacer(Modifier.height(16.dp))
-                            
+                            PrimaryButton(
+                                text = "Добавить питомца",
+                                onClick = { navController.navigate("admin/addPet") },
+                                modifier = Modifier.weight(1f),
+                                icon = Icons.Default.Add
+                            )
+                        }
+
+                        // Бейджи ролей
+                        if (uiState.isShelterAdmin || uiState.isAdminRole) {
+                            Spacer(Modifier.height(8.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                StatCard(
-                                    icon = Icons.Default.Pets,
-                                    label = "Всего питомцев",
-                                    value = uiState.pets.size.toString(),
-                                    color = Primary
-                                )
-                                StatCard(
-                                    icon = Icons.Default.CheckCircle,
-                                    label = "Активные",
-                                    value = uiState.pets.count { it.is_active }.toString(),
-                                    color = Color(0xFF4CAF50)
-                                )
+                                if (uiState.isShelterAdmin) {
+                                    AssistChip(
+                                        onClick = { },
+                                        label = { Text("Приют") },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.Business,
+                                                null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    )
+                                }
+                                if (uiState.isAdminRole) {
+                                    AssistChip(
+                                        onClick = { },
+                                        label = { Text("Админ") },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Default.AdminPanelSettings,
+                                                null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                // Кнопки действий
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        PrimaryButton(
-                            text = "Добавить питомца",
-                            onClick = { navController.navigate("admin/addPet") },
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Default.Add
-                        )
-                        OutlinedButton(
-                            onClick = { viewModel.loadPets() },
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Default.Refresh
-                        ) {
-                            Text("Обновить")
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-                }
-
-                // Заголовок списка
-                item {
-                    Text(
-                        text = "Мои питомцы",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-                }
+                Spacer(Modifier.height(8.dp))
 
                 // Список питомцев
-                if (uiState.pets.isEmpty()) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Заголовок списка с статистикой
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Pets,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = TextSecondary
-                                )
-                                Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Мои питомцы",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primaryContainer
+                            ) {
                                 Text(
-                                    "У вас пока нет питомцев",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = TextSecondary
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    "Добавьте первого питомца!",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextSecondary.copy(alpha = 0.7f)
+                                    text = "${uiState.filteredPets.size}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                                 )
                             }
                         }
                     }
-                } else {
-                    items(uiState.pets.size) { index ->
-                        ShelterPetCard(
-                            pet = uiState.pets[index],
-                            onClick = { 
-                                val pet = uiState.pets[index]
-                                navController.navigate("admin/editPet/${pet.id}") 
-                            },
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
-                        
-                        if (index < uiState.pets.size - 1) {
-                            Spacer(Modifier.height(12.dp))
+
+                    // Список питомцев
+                    if (uiState.filteredPets.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        if (searchQuery.isNotBlank()) Icons.Default.Search else Icons.Default.Pets,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = TextSecondary
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        if (searchQuery.isNotBlank()) "Ничего не найдено" else "У вас пока нет питомцев",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = TextSecondary
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        if (searchQuery.isNotBlank()) "Попробуйте изменить запрос" else "Добавьте первого питомца!",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        items(uiState.filteredPets.size, key = { uiState.filteredPets[it].id ?: it }) { index ->
+                            val pet = uiState.filteredPets[index]
+                            val applications = uiState.applicationsByPet[pet.id] ?: emptyList()
+                            val totalApplications = applications.size
+                            
+                            ShelterPetCard(
+                                pet = pet,
+                                applicationCount = totalApplications,
+                                onEdit = { 
+                                    navController.navigate("admin/editPet/${pet.id}") 
+                                },
+                                onViewApplications = {
+                                    pet.name?.let { name ->
+                                        navController.navigate("admin/applications/${pet.id}/${name}")
+                                    }
+                                },
+                                onDelete = { showDeleteDialog = pet.id }
+                            )
                         }
                     }
                 }
             }
         }
+    }
+
+    // Диалог подтверждения удаления
+    showDeleteDialog?.let { petId ->
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = null },
+            icon = {
+                Icon(
+                    Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Удалить питомца") },
+            text = { Text("Вы уверены, что хотите удалить этого питомца? Это действие нельзя отменить.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deletePet(petId)
+                        showDeleteDialog = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Удалить", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = null }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     if (showLogoutDialog) {
@@ -302,13 +401,16 @@ private fun StatCard(
 @Composable
 private fun ShelterPetCard(
     pet: Pet,
-    onClick: () -> Unit,
+    applicationCount: Int = 0,
+    onEdit: () -> Unit,
+    onViewApplications: () -> Unit,
+    onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(onClick = onEdit),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -360,12 +462,45 @@ private fun ShelterPetCard(
                     .weight(1f)
                     .align(Alignment.CenterVertically)
             ) {
-                Text(
-                    text = pet.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = pet.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
+                    
+                    // Индикатор количества заявок
+                    if (applicationCount > 0) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Default.Person,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Spacer(Modifier.width(2.dp))
+                                Text(
+                                    text = applicationCount.toString(),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "${pet.getTypeDisplay()} • ${pet.age} лет",
@@ -394,6 +529,46 @@ private fun ShelterPetCard(
                             modifier = Modifier.size(16.dp)
                         )
                     }
+                }
+            }
+            
+            // Кнопки действий
+            Column(
+                modifier = Modifier.align(Alignment.CenterVertically),
+                horizontalAlignment = Alignment.End
+            ) {
+                // Кнопка просмотра заявок (если есть заявки)
+                if (applicationCount > 0) {
+                    IconButton(
+                        onClick = onViewApplications,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Email,
+                            contentDescription = "Заявки",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Редактировать",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Удалить",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }

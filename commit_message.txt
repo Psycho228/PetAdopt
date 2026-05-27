@@ -1,14 +1,7 @@
-feat: fix pet editing and update documentation
+refactor: improve GigaChat integration and update AdminScreen
 
-- Fix saving photos and traits when editing pet (shelter_id)
-- Add RLS policies for pet editing (user/admin/shelter roles)
-- Add ShelterScreen with statistics and pet management
-- Add MatchesScreen with list of liked pets
-- Add QuestionnaireCompleteScreen
-- Improve logging in repositories for debugging pet updates
-- Update documentation (KODA.md, README.md)
-
-Technical:
-- Add detailed logging in SupabasePetRepository and AdminRepository
-- Create fix_pets_rls.sql script for Supabase policies
-- Update DB migrations (add_traits_column.sql, pets_rls_policy.sql)
+- Updated GigaChatRiskAssessment and RiskAssessmentRecord models
+- Improved risk handling in QuestionnaireViewModel
+- Redesigned RiskAssessmentCard UI with score display
+- Updated AccountScreen and AdminScreen for risk scores
+- Enhanced logic in GigaChatRepository

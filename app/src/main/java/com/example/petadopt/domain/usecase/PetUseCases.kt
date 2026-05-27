@@ -79,6 +79,33 @@ class UpdateApplicationStatusUseCase @Inject constructor(
 }
 
 @Singleton
+class GetPendingApplicationsUseCase @Inject constructor(
+    private val repository: PetRepository
+) {
+    suspend operator fun invoke(petId: String): List<Application> {
+        return repository.getPendingApplications(petId)
+    }
+}
+
+@Singleton
+class GetApplicationsForPetUseCase @Inject constructor(
+    private val repository: PetRepository
+) {
+    suspend operator fun invoke(petId: String): List<Application> {
+        return repository.getApplicationsForPet(petId)
+    }
+}
+
+@Singleton
+class AutoAcceptApplicationUseCase @Inject constructor(
+    private val repository: PetRepository
+) {
+    suspend operator fun invoke(applicationId: String): String? {
+        return repository.autoAcceptApplication(applicationId)
+    }
+}
+
+@Singleton
 class GetPetsByTypeUseCase @Inject constructor(
     private val repository: PetRepository
 ) {

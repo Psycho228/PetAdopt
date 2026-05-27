@@ -240,6 +240,54 @@ class SupabasePetRepository @Inject constructor(
         }
     }
 
+    override suspend fun getApplicationsForPet(petId: String): List<Application> {
+        return try {
+            val result = postgrest.from(TABLE_APPLICATIONS)
+                .select {
+                    filter { eq("pet_id", petId) }
+                    order("created_at", Order.DESCENDING)
+                }
+                .decodeList<Application>()
+            
+            Log.d(TAG, "Found ${result.size} applications for pet: $petId")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting applications for pet: ${e.message}")
+            emptyList()
+        }
+    }
+
+    override suspend fun autoAcceptApplication(applicationId: String): String? {
+        return try {
+            // Получаем заявку
+            val application = postgrest.from(TABLE_APPLICATIONS)
+                .select { filter { eq("id", applicationId) } }
+                .decodeSingleOrNull<Application>()
+            
+            if (application == null) {
+                Log.w(TAG, "Application not found: $applicationId")
+                return null
+            }
+            
+            if (application.status != "pending") {
+                Log.d(TAG, "Application already processed: ${application.status}")
+                return application.status
+            }
+            
+            // Авто-принятие: меняем статус на approved
+            postgrest.from(TABLE_APPLICATIONS)
+                .update(buildJsonObject { put("status", "approved") }) {
+                    filter { eq("id", applicationId) }
+                }
+            
+            Log.d(TAG, "Application auto-accepted: $applicationId")
+            "approved"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error auto-accepting application: ${e.message}")
+            null
+        }
+    }
+
     override suspend fun updateApplicationStatus(applicationId: String, status: String) {
         try {
             postgrest.from(TABLE_APPLICATIONS)

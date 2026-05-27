@@ -111,6 +111,16 @@ fun AccountScreen(
 
                 Spacer(Modifier.height(16.dp))
 
+                // Секция "Админ-панель" (только для администраторов и приютов)
+                if (state.isAdmin || state.isShelter) {
+                    AdminPanelSection(
+                        isAdmin = state.isAdmin,
+                        onClick = onAdminPanel
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+                }
+
                 Spacer(Modifier.height(16.dp))
             }
         }
@@ -760,9 +770,63 @@ private fun RiskAssessmentSection(
                     Text(
                         text = "Пройдите опросник для получения оценки",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary.copy(alpha = 0.8f)
+                        color = TextSecondary
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminPanelSection(
+    isAdmin: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (isAdmin) Icons.Default.AdminPanelSettings else Icons.Default.Business,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            Spacer(Modifier.width(14.dp))
+
+            Column {
+                Text(
+                    text = if (isAdmin) "Админ-панель" else "Кабинет приюта",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = if (isAdmin) "Управление всеми питомцами" else "Управление питомцами приюта",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
             }
         }
     }
