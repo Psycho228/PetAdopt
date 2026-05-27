@@ -97,7 +97,9 @@ fun NavGraph() {
 
         composable("questionnaire") {
             QuestionnaireScreen(
-                onFinish = {
+                onFinish = { withRiskAssessment ->
+                    // Всегда переходим на swipe после завершения опросника
+                    // (с оценкой рисков или без - это обрабатывается внутри QuestionnaireScreen)
                     navController.navigate("swipe") {
                         popUpTo("questionnaire") { inclusive = true }
                     }

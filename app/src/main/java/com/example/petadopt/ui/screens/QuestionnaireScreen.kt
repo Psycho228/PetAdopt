@@ -5,6 +5,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -124,12 +127,14 @@ fun extractPhoneDigits(formatted: String): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuestionnaireScreen(
-    onFinish: () -> Unit,
+    onFinish: (Boolean) -> Unit,
     viewModel: QuestionnaireViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     var step by remember { mutableStateOf(0) }
     val scrollState = rememberScrollState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     
     // Скроллим к верху при изменении шага
     LaunchedEffect(step) {
@@ -216,7 +221,7 @@ fun QuestionnaireScreen(
             Question.YesNo("Готовы ли вы поддерживать связь после пристройства?",
                 state.maintainContact, viewModel::onMaintainContactChange, icon = Icons.Default.Email)
         ),
-        SectionInfo("Ответственность", Icons.Default.Favorite) to listOf(
+        SectionInfo("Эмоциональная часть", Icons.Default.Favorite) to listOf(
             Question.Text("Что для вас значит \"ответственный хозяин\"?", "", state.responsibleOwner, viewModel::onResponsibleOwnerChange, icon = Icons.Default.Favorite),
             Question.Text("Как вы представляете жизнь с питомцем?", "", state.lifeWithPet, viewModel::onLifeWithPetChange, icon = Icons.Default.Favorite),
             Question.Text("Почему, по вашему мнению, именно вы станете хорошим хозяином?", "", state.whyGoodOwner, viewModel::onWhyGoodOwnerChange, icon = Icons.Default.Star)
@@ -297,7 +302,7 @@ fun QuestionnaireScreen(
                 OutlinedButton(
                     onClick = {
                         showConfirmation = false
-                        viewModel.saveAndFinish { onFinish() }
+                        viewModel.saveAndFinish { onFinish(false) }
                     }
                 ) {
                     Text("Только сохранить")
@@ -329,7 +334,7 @@ fun QuestionnaireScreen(
                     onClick = {
                         showRiskAssessment = false
                         riskAssessmentResult = null
-                        onFinish()
+                        onFinish(true)
                     }
                 )
             }
@@ -340,11 +345,19 @@ fun QuestionnaireScreen(
     if (isLoadingRisk) {
         AlertDialog(
             onDismissRequest = { },
-            title = { Text("Оценка рисков") },
+            title = { 
+                Text(
+                    "Оценка рисков",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
             text = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(vertical = 16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp)
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(48.dp),
@@ -354,7 +367,8 @@ fun QuestionnaireScreen(
                     Text(
                         "Анализирую ответы...",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary
+                        color = TextSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
             },
@@ -391,6 +405,14 @@ fun QuestionnaireScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    // Закрыть клавиатуру и снять фокус при клике по фону
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
                 .verticalScroll(scrollState)
                 .padding(16.dp)
         ) {
