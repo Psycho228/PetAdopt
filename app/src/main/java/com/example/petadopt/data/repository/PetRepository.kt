@@ -30,4 +30,5 @@ interface PetRepository {
     suspend fun createPet(pet: Pet, userId: String): String
     suspend fun updatePet(pet: Pet)
     suspend fun deletePet(petId: String)
+    suspend fun getPetsByShelterId(shelterId: String): List<Pet>
 }

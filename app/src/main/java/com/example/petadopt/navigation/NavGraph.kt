@@ -15,6 +15,7 @@ import com.example.petadopt.ui.screens.AuthScreen
 import com.example.petadopt.ui.screens.OnboardingScreen
 import com.example.petadopt.ui.screens.QuestionnaireScreen
 import com.example.petadopt.ui.screens.SwipeScreen
+import com.example.petadopt.ui.screens.ShelterScreen
 import com.example.petadopt.ui.screens.DetailsScreen
 import com.example.petadopt.ui.screens.ApplicationScreen
 import com.example.petadopt.ui.screens.MatchesScreen
@@ -81,6 +82,13 @@ fun NavGraph() {
                 StartDestination.SWIPE -> {
                     LaunchedEffect(Unit) {
                         navController.navigate("swipe") {
+                            popUpTo("loading") { inclusive = true }
+                        }
+                    }
+                }
+                StartDestination.SHELTER -> {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("shelter") {
                             popUpTo("loading") { inclusive = true }
                         }
                     }
@@ -182,11 +190,15 @@ fun NavGraph() {
             )
         }
 
-        // Админ-панель
+        // Админ-панель (перенаправляет в shelter screen)
         composable("admin") {
-            AdminScreen(
-                navController = navController
-            )
+            navController.navigate("shelter") {
+                popUpTo("shelter") { inclusive = false }
+            }
+        }
+
+        composable("shelter") {
+            ShelterScreen(navController = navController)
         }
 
         composable("admin/addPet") {

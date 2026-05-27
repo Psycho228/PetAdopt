@@ -9,7 +9,9 @@
 - **Заявки** — подача заявок на пристройство питомца с отслеживанием статуса
 - **Опросник** — детальная анкета потенциального хозяина (6 разделов, 37 вопросов) с Material 3 UI
 - **Профиль** — управление личными данными, просмотр истории заявок и ответов на опросник
+- **Совпадения** — список лайкнутых питомцев с возможностью удаления лайков
 - **Админ-панель** — управление питомцами (добавление, редактирование) для приютов
+- **Кабинет приюта** — статистика, управление питомцами, просмотр заявок
 - **Supabase** — аутентификация, PostgreSQL база данных и S3 хранилище
 - **S3 (reg.ru Cloud)** — загрузка фотографий питомцев с SigV4 подписью
 - **GigaChat** — оценка рисков при подаче заявок
@@ -92,8 +94,12 @@ app/src/main/java/com/example/petadopt/
 │   │   ├── EditProfileScreen.kt
 │   │   ├── MatchesScreen.kt
 │   │   ├── OnboardingScreen.kt
+│   │   ├── QuestionnaireCompleteScreen.kt
 │   │   ├── QuestionnaireScreen.kt
+│   │   ├── ShelterScreen.kt
 │   │   └── SwipeScreen.kt
+│   ├── state/              # Состояния UI
+│   │   └── MatchState.kt
 │   └── theme/
 │       ├── Color.kt
 │       ├── Theme.kt
@@ -158,7 +164,8 @@ app/src/main/java/com/example/petadopt/
 
 ### Роли пользователей
 - `user` — обычный пользователь (ищет питомца)
-- `admin` — администратор приюта (добавляет питомцев)
+- `admin` — администратор приюта (управляет всеми питомцами)
+- `shelter` — сотрудник приюта (управляет своими питомцами)
 
 ### Статусы заявок
 - `pending` — заявка на рассмотрении
@@ -316,7 +323,8 @@ composable("matches") { MatchesScreen(...) }
 composable("account") { AccountScreen(...) }
 composable("edit_profile") { EditProfileScreen(...) }
 composable("applications") { ApplicationsScreen(...) }
-composable("admin") { AdminScreen(...) }
+composable("admin") { AdminScreen(...) -> ShelterScreen(...) }
+composable("shelter") { ShelterScreen(...) }
 composable("admin/addPet") { AddEditPetScreen(...) }
 composable("admin/editPet/{petId}") { AddEditPetScreen(...) }
 
@@ -421,15 +429,20 @@ cp .env.example .env
 - [x] S3 загрузка фото с SigV4 подписью (reg.ru Cloud)
 - [x] Редактирование питомцев с существующими фото
 - [x] Удаление фото при редактировании
+- [x] Исправление сохранения фото и тегов при редактировании (shelter_id)
 - [x] GigaChat оценка рисков
 - [x] Админ-панель для приютов
+- [x] Кабинет приюта (ShelterScreen) со статистикой и управлением
+- [x] Экран совпадений (MatchesScreen) со списком лайкнутых питомцев
+- [x] Экран завершения опросника (QuestionnaireCompleteScreen)
 - [x] Улучшенный опросник с Material 3 UI
   - Выпадающие списки (ExposedDropdownMenuBox)
   - Чекбоксы для множественного выбора
   - Анимации переходов и прогресс-бар
   - Пошаговая навигация по разделам (6 секций, 37 вопросов)
 - [x] Навигация с аутентификацией через Supabase Auth
-- [x] Роли пользователей (user/admin) через `role` колонку в `users`
+- [x] Роли пользователей (user/admin/shelter) через `role` колонку в `users`
+- [x] RLS политики для редактирования питомцев (приюты + админы)
 
 ### В планах
 - [ ] Push-уведомления (Firebase Cloud Messaging)
@@ -452,6 +465,8 @@ cp .env.example .env
 > ✅ **Исправлено:**
 > - ProGuard теперь настроен для release-сборок
 > - S3/GigaChat ключи загружаются из `.env` файла (не вшиты в код)
+> - Сохранение фото и тегов при редактировании питомца (shelter_id)
+> - RLS политики для редактирования питомцев (поддержка ролей user/admin)
 
 ## 📞 Контакты
 
@@ -459,5 +474,5 @@ cp .env.example .env
 
 ---
 
-*Файл актуализирован 24 мая 2026 г.*
-*Обновлено: добавлена безопасность, ProGuard, .env конфигурация*
+*Файл актуализирован 28 мая 2026 г.*
+*Обновлено: добавлена безопасность, ProGuard, .env конфигурация, исправление редактирования питомцев, RLS политики*

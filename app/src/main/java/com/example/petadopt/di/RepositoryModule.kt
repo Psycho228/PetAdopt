@@ -208,6 +208,11 @@ object UseCaseModule {
         return UpdatePetStatusUseCaseAdmin(repository)
     }
 
+    @Provides
+    fun provideGetPetsByShelterUseCase(repository: PetRepository): GetPetsByShelterUseCase {
+        return GetPetsByShelterUseCase(repository)
+    }
+
     // Storage UseCases
     @Provides
     fun provideUploadImageUseCase(storageRepository: StorageRepository): UploadImageUseCase {

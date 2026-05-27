@@ -31,6 +31,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.petadopt.data.model.GigaChatRiskAssessment
 import com.example.petadopt.ui.components.PrimaryButton
@@ -279,7 +281,7 @@ fun QuestionnaireScreen(
             },
             confirmButton = {
                 PrimaryButton(
-                    text = "Сохранить и оценить",
+                    text = "Оценить и сохранить",
                     onClick = {
                         showConfirmation = false
                         isLoadingRisk = true
@@ -295,18 +297,9 @@ fun QuestionnaireScreen(
                                 }
                             }
                         )
-                    }
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 )
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        showConfirmation = false
-                        viewModel.saveAndFinish { onFinish(false) }
-                    }
-                ) {
-                    Text("Только сохранить")
-                }
             }
         )
     }
@@ -574,7 +567,7 @@ fun QuestionnaireScreen(
                     if (currentStep > 0) {
                         OutlinedButton(
                             onClick = { step-- },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(50.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = TextSecondary
                             )
@@ -602,7 +595,7 @@ fun QuestionnaireScreen(
                                 step++
                             }
                         },
-                        modifier = Modifier.weight(if (currentStep > 0) 1f else 1f)
+                        modifier = Modifier.weight(if (currentStep > 0) 1f else 1f).height(50.dp)
                     )
                 }
             }

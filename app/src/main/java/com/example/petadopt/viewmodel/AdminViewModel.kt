@@ -20,11 +20,16 @@ data class AdminUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val pets: List<Pet> = emptyList(),
+    val filteredPets: List<Pet> = emptyList(),
+    val searchQuery: String = "",
     val isSaveSuccessful: Boolean = false,
     val uploadingImages: Boolean = false,
     val uploadedImages: List<String> = emptyList(),
     val currentPet: Pet? = null,
-    val existingImageUrls: List<String> = emptyList()
+    val existingImageUrls: List<String> = emptyList(),
+    val shelterName: String = "",
+    val isShelterAdmin: Boolean = false,
+    val isAdminRole: Boolean = false
 )
 
 @HiltViewModel
@@ -37,7 +42,10 @@ class AdminViewModel @Inject constructor(
     private val uploadImagesUseCase: UploadImagesUseCase,
     private val deleteImageUseCase: DeleteImageUseCase,
     private val authRepository: AuthRepository,
-    private val getPetByIdUseCase: GetPetByIdUseCase
+    private val getPetByIdUseCase: GetPetByIdUseCase,
+    private val getPetsByShelterUseCase: GetPetsByShelterUseCase,
+    private val getUserUseCase: GetUserUseCase,
+    private val searchPetsUseCase: SearchPetsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminUiState())
@@ -47,13 +55,34 @@ class AdminViewModel @Inject constructor(
         loadPets()
     }
 
+    private fun loadShelterInfo() {
+        viewModelScope.launch {
+            val user = getUserUseCase()
+            _uiState.value = _uiState.value.copy(
+                shelterName = user?.name ?: "Приют",
+                isShelterAdmin = user?.isShelter() == true,
+                isAdminRole = user?.isAdmin() == true
+            )
+        }
+    }
+
     fun loadPets() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             try {
-                val pets = getAllPetsUseCase()
+                loadShelterInfo()
+                val currentRole = _uiState.value.isAdminRole
+                val pets = if (currentRole) {
+                    // Admin видит всех питомцев
+                    getAllPetsUseCase()
+                } else {
+                    // Shelter видит только своих
+                    val shelterId = authRepository.currentUserId ?: ""
+                    getPetsByShelterUseCase(shelterId)
+                }
                 _uiState.value = _uiState.value.copy(
                     pets = pets,
+                    filteredPets = pets,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -61,6 +90,32 @@ class AdminViewModel @Inject constructor(
                     error = e.message,
                     isLoading = false
                 )
+            }
+        }
+    }
+
+    fun searchPets(query: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(searchQuery = query)
+            if (query.isBlank()) {
+                _uiState.value = _uiState.value.copy(
+                    filteredPets = _uiState.value.pets
+                )
+                return@launch
+            }
+            
+            try {
+                val searchResults = searchPetsUseCase(query)
+                // Фильтруем по текущим правам доступа
+                val filtered = if (_uiState.value.isAdminRole) {
+                    searchResults
+                } else {
+                    val shelterId = _uiState.value.pets.firstOrNull()?.shelter_id ?: ""
+                    searchResults.filter { it.shelter_id == shelterId }
+                }
+                _uiState.value = _uiState.value.copy(filteredPets = filtered)
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
             }
         }
     }
@@ -134,6 +189,7 @@ class AdminViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null, isSaveSuccessful = false)
             try {
+                android.util.Log.d("AdminViewModel", "Updating pet: id=${pet.id}, shelter_id=${pet.shelter_id}")
                 updatePetUseCase(pet)
                 _uiState.value = _uiState.value.copy(
                     isSaveSuccessful = true,
@@ -141,6 +197,7 @@ class AdminViewModel @Inject constructor(
                 )
                 loadPets()
             } catch (e: Exception) {
+                android.util.Log.e("AdminViewModel", "Error updating pet: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
                     error = e.message,
                     isLoading = false

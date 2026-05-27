@@ -87,9 +87,12 @@ fun AddEditPetScreen(
         }
     }
     
-    // Применение загруженных данных к полям
+    // Применение загруженных данных к полям (только при первой загрузке)
+    var petLoaded by remember { mutableStateOf(false) }
     LaunchedEffect(uiState.currentPet) {
         val pet = uiState.currentPet ?: return@LaunchedEffect
+        if (petLoaded) return@LaunchedEffect
+        petLoaded = true
         petName = pet.name
         petAge = pet.age.toString()
         petType = pet.type
@@ -602,9 +605,16 @@ fun AddEditPetScreen(
                         // Дополнительные фото - все остальные
                         val additionalPhotos = allImageUrls.drop(1).filter { it.isNotBlank() }
                         
+                        // shelter_id: при редактировании берём из загруженного питомца, при создании - пустой
+                        val currentShelterId = if (isEditing && uiState.currentPet != null) {
+                            uiState.currentPet!!.shelter_id
+                        } else {
+                            ""
+                        }
+                        
                         val pet = Pet(
                             id = petId ?: "",
-                            shelter_id = "", // Заполнить при создании
+                            shelter_id = currentShelterId,
                             name = petName,
                             age = petAge.toIntOrNull() ?: 0,
                             type = petType,
@@ -621,6 +631,11 @@ fun AddEditPetScreen(
                             weight = null,
                             is_active = true
                         )
+                        android.util.Log.d("AddEditPet", "Saving pet: id=${pet.id}, name=${pet.name}")
+                        android.util.Log.d("AddEditPet", "  shelter_id=$currentShelterId, isEditing=$isEditing")
+                        android.util.Log.d("AddEditPet", "  traits=${pet.traits}, count=${pet.traits?.size ?: 0}")
+                        android.util.Log.d("AddEditPet", "  additional_photos=${pet.additional_photos}, count=${pet.additional_photos?.size ?: 0}")
+                        android.util.Log.d("AddEditPet", "  photo_url=${pet.photo_url}")
 
                         if (isEditing) {
                             viewModel.updatePet(pet)

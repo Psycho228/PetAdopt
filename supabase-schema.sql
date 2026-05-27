@@ -35,6 +35,8 @@ CREATE TABLE IF NOT EXISTS public.pets (
     breed TEXT,
     color TEXT,
     weight DECIMAL(5,2),
+    size TEXT DEFAULT 'medium' CHECK (size IN ('small', 'medium', 'large')),
+    traits TEXT[] DEFAULT '{}',
     description TEXT,
     photo_url TEXT NOT NULL,
     additional_photos TEXT[],

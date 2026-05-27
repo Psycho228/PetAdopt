@@ -25,9 +25,14 @@ class AdminRepository @Inject constructor(
 
     suspend fun updatePet(pet: Pet) {
         try {
+            Log.d(TAG, "AdminRepository.updatePet called: id=${pet.id}, name=${pet.name}")
+            Log.d(TAG, "  shelter_id: ${pet.shelter_id}")
+            Log.d(TAG, "  traits: ${pet.traits}")
+            Log.d(TAG, "  additional_photos: ${pet.additional_photos?.size} photos")
             petRepository.updatePet(pet)
-            Log.d(TAG, "Pet updated: ${pet.id}")
+            Log.d(TAG, "Pet updated successfully: ${pet.id}")
         } catch (e: Exception) {
+            Log.e(TAG, "Error updating pet: ${e.message}", e)
             throw Exception("Ошибка обновления питомца: ${e.message}")
         }
     }

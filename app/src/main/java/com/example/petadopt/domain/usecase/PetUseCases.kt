@@ -120,3 +120,12 @@ class FilterPetsUseCase @Inject constructor(
         )
     }
 }
+
+@Singleton
+class GetPetsByShelterUseCase @Inject constructor(
+    private val repository: PetRepository
+) {
+    suspend operator fun invoke(shelterId: String): List<Pet> {
+        return repository.getPetsByShelterId(shelterId)
+    }
+}

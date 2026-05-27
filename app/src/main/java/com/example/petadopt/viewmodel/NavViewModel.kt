@@ -3,7 +3,9 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Log
+import com.example.petadopt.data.model.User
 import com.example.petadopt.data.repository.QuestionnaireRepository
+import com.example.petadopt.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,12 +19,14 @@ private const val TAG = "NavViewModel"
 enum class StartDestination {
     LOADING,
     QUESTIONNAIRE,
-    SWIPE
+    SWIPE,
+    SHELTER
 }
 
 @HiltViewModel
 class NavViewModel @Inject constructor(
-    private val repo: QuestionnaireRepository
+    private val repo: QuestionnaireRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _startDestination = MutableStateFlow(StartDestination.LOADING)
@@ -34,6 +38,25 @@ class NavViewModel @Inject constructor(
             repeat(5) { attempt ->
                 delay(500)
                 try {
+                    val user = authRepository.getUser()
+                    val userId = authRepository.currentUserId
+                    
+                    if (user == null || userId == null) {
+                        Log.d(TAG, "User not logged in. Attempt $attempt")
+                        return@launch
+                    }
+                    
+                    // Проверяем роль пользователя
+                    val isShelterOrAdmin = user.role == User.ROLE_SHELTER || user.role == User.ROLE_ADMIN
+                    
+                    if (isShelterOrAdmin) {
+                        // Приюты и админы не проходят опросник, идут в shelter screen
+                        Log.d(TAG, "User is shelter/admin. Going to SHELTER")
+                        _startDestination.update { StartDestination.SHELTER }
+                        return@launch
+                    }
+                    
+                    // Для обычных пользователей проверяем опросник
                     val answer = repo.getAnswers()
                     Log.d(TAG, "Attempt $attempt: answer = ${answer?.q1_full_name}")
                     if (answer != null) {
@@ -45,9 +68,23 @@ class NavViewModel @Inject constructor(
                     Log.e(TAG, "Attempt $attempt error: ${e.message}")
                 }
             }
-            // Если не удалось получить данные - показываем опросник
-            Log.d(TAG, "No questionnaire found. Going to QUESTIONNAIRE")
-            _startDestination.update { StartDestination.QUESTIONNAIRE }
+            // Проверяем роль пользователя в последний раз
+            try {
+                val user = authRepository.getUser()
+                val isShelterOrAdmin = user?.role == User.ROLE_SHELTER || user?.role == User.ROLE_ADMIN
+                
+                if (isShelterOrAdmin) {
+                    Log.d(TAG, "User is shelter/admin (final check). Going to SHELTER")
+                    _startDestination.update { StartDestination.SHELTER }
+                } else {
+                    // Если не удалось получить данные - показываем опросник
+                    Log.d(TAG, "No questionnaire found. Going to QUESTIONNAIRE")
+                    _startDestination.update { StartDestination.QUESTIONNAIRE }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Final check error: ${e.message}")
+                _startDestination.update { StartDestination.QUESTIONNAIRE }
+            }
         }
     }
 }

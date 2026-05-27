@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,14 +35,29 @@ fun AdminScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Админ-панель") },
+                title = { 
+                    Column {
+                        Text(
+                            text = if (uiState.isAdminRole) "Админ-панель" else "Личный кабинет приюта",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (uiState.shelterName.isNotBlank()) {
+                            Text(
+                                text = uiState.shelterName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ),
                 actions = {
-                    IconButton(onClick = { /* TODO: Выйти из админки */ }) {
-                        Icon(Icons.Default.ExitToApp, "Выход")
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Выйти из админки")
                     }
                 }
             )
@@ -59,7 +75,7 @@ fun AdminScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Управление питомцами",
+                    text = if (uiState.isAdminRole) "Все питомцы" else "Мои питомцы",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -71,7 +87,91 @@ fun AdminScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(8.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            if (uiState.isAdminRole) Icons.Default.People else Icons.Default.Business,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = if (uiState.isAdminRole) "Всего питомцев" else "Всего питомцев",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = uiState.pets.size.toString(),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Row {
+                        if (uiState.isShelterAdmin) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            ) {
+                                Text(
+                                    "Роль: Приют",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        if (uiState.isAdminRole) {
+                            Badge(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ) {
+                                Text(
+                                    "Роль: Админ",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            // Поле поиска
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = { viewModel.searchPets(it) },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { 
+                    Text("Поиск по имени, породе...") 
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                },
+                trailingIcon = {
+                    if (uiState.searchQuery.isNotBlank()) {
+                        IconButton(onClick = { viewModel.searchPets("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = "Очистить")
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(Modifier.height(8.dp))
 
             if (uiState.isLoading && uiState.pets.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -90,7 +190,7 @@ fun AdminScreen(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(uiState.pets) { pet ->
+                    items(uiState.filteredPets) { pet ->
                         PetAdminItem(
                             pet = pet,
                             onClick = { navController.navigate("admin/editPet/${pet.id}") },
@@ -98,29 +198,29 @@ fun AdminScreen(
                         )
                     }
 
-                    if (uiState.pets.isEmpty()) {
+                    if (uiState.filteredPets.isEmpty()) {
                         item {
                             Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Info,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = TextSecondary
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "Нет питомцев",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = TextSecondary
-                            )
-                        }
-                    }
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        if (uiState.searchQuery.isNotBlank()) Icons.Default.Search else Icons.Default.Info,
+                                        null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = TextSecondary
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        if (uiState.searchQuery.isNotBlank()) "Ничего не найдено" else "Нет питомцев",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

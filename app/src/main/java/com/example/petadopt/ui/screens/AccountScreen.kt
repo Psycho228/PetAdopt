@@ -111,11 +111,7 @@ fun AccountScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Кнопка админ-панели (только для admin/shelter)
-                if (state.user?.isShelter() == true || state.user?.isAdmin() == true) {
-                    AdminPanelSection(onClick = onAdminPanel)
-                    Spacer(Modifier.height(16.dp))
-                }
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
@@ -767,66 +763,6 @@ private fun RiskAssessmentSection(
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun AdminPanelSection(onClick: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .clickable { onClick() },
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Settings,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(Modifier.width(14.dp))
-
-                Column {
-                    Text(
-                        text = "Админ-панель",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "Управление питомцами",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f)
-                    )
-                }
-            }
-
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onErrorContainer
-            )
         }
     }
 }

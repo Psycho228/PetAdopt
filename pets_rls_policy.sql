@@ -17,16 +17,24 @@ FOR INSERT WITH CHECK (
     AND shelter_id = auth.uid()
 );
 
--- Разрешаем обновление владельцам
+-- Разрешаем обновление владельцам (по shelter_id или если пользователь админ)
 CREATE POLICY "Authenticated update pets" ON public.pets
 FOR UPDATE USING (
     auth.role() = 'authenticated' 
-    AND shelter_id = auth.uid()
+    AND (shelter_id = auth.uid() OR EXISTS (
+        SELECT 1 FROM public.users 
+        WHERE users.id = auth.uid() 
+        AND users.role = 'admin'
+    ))
 );
 
--- Разрешаем удаление владельцам
+-- Разрешаем удаление владельцам (по shelter_id или если пользователь админ)
 CREATE POLICY "Authenticated delete pets" ON public.pets
 FOR DELETE USING (
     auth.role() = 'authenticated' 
-    AND shelter_id = auth.uid()
+    AND (shelter_id = auth.uid() OR EXISTS (
+        SELECT 1 FROM public.users 
+        WHERE users.id = auth.uid() 
+        AND users.role = 'admin'
+    ))
 );

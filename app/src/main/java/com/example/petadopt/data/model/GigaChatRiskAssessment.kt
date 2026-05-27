@@ -1,6 +1,7 @@
 package com.example.petadopt.data.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 /**
  * Ответ от GigaChat с оценкой рисков пристройства питомца
@@ -27,6 +28,7 @@ enum class RiskLevel {
 @Serializable
 data class RiskFactor(
     val category: String,           // Категория риска (жилищные условия, опыт, ответственность...)
+    @JsonNames("severity", "sev", "MED", "MEDIUM", "HIGH", "VERY_HIGH", "CRITICAL", "CRIT")
     val severity: RiskSeverity,     // Серьёзность
     val description: String,        // Описание фактора
     val suggestion: String?         // Предложение по снижению риска
@@ -36,7 +38,23 @@ data class RiskFactor(
 enum class RiskSeverity {
     LOW,        // Небольшой риск
     MEDIUM,     // Средний риск
-    HIGH        // Высокий риск
+    HIGH,       // Высокий риск
+    VERY_HIGH,  // Очень высокий риск
+    CRITICAL;   // Критический риск
+    
+    companion object {
+        // Кастомный парсер для поддержки сокращений от GigaChat
+        fun fromString(value: String): RiskSeverity {
+            return when (value.uppercase()) {
+                "LOW", "ЛOW" -> LOW
+                "MED", "MEDIUM" -> MEDIUM
+                "HIGH", "HI" -> HIGH
+                "VERY_HIGH", "VERYHIGH", "VERY" -> VERY_HIGH
+                "CRITICAL", "CRIT" -> CRITICAL
+                else -> MEDIUM // По умолчанию
+            }
+        }
+    }
 }
 
 @Serializable

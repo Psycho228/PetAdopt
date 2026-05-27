@@ -44,7 +44,7 @@ data class GigaChatRequest(
     val model: String = "GigaChat-2",
     val messages: List<Message>,
     val temperature: Double = 0.3,
-    val max_tokens: Int = 2000
+    val max_tokens: Int = 4096
 )
 
 @Serializable
@@ -355,7 +355,7 @@ class GigaChatRepository @Inject constructor() {
         Log.d(TAG, "Отправка запроса к GigaChat API...")
         
         // Пытаемся использовать модели по приоритету (от лучшей к базовой)
-        val modelsToTry = listOf("GigaChat-2", "GigaChat-2-Max", "GigaChat-2-Pro", "GigaChat-Pro")
+        val modelsToTry = listOf("GigaChat-2", "GigaChat", "GigaChat", "GigaChat")
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {
@@ -365,7 +365,7 @@ class GigaChatRepository @Inject constructor() {
                 model = model,
                 messages = listOf(Message(role = "user", content = prompt)),
                 temperature = 0.3,
-                max_tokens = 2000
+                max_tokens = 4096
             ))
             
             val response = client.post("$baseUrl/chat/completions") {
@@ -380,7 +380,7 @@ class GigaChatRepository @Inject constructor() {
             
             if (response.status.value == 200) {
                 val responseBody = response.body<String>()
-                Log.d(TAG, "Успех! Тело ответа: $responseBody")
+                Log.d(TAG, "Успех! Тело ответа, длина: ${responseBody.length} символов")
                 
                 // Парсим ответ вручную
                 val element = json.parseToJsonElement(responseBody)
@@ -389,10 +389,12 @@ class GigaChatRepository @Inject constructor() {
                 val content = message?.get("content")?.jsonPrimitive?.content
                 
                 if (content != null) {
-                    Log.d(TAG, "Контент успешно извлечён из модели $model")
+                    Log.d(TAG, "Контент успешно извлечён из модели $model, длина: ${content.length} символов")
+                    Log.d(TAG, "Первые 300 символов контента: ${content.take(300)}")
                     return content
                 } else {
                     Log.e(TAG, "Не удалось извлечь content из ответа")
+                    Log.e(TAG, "Полный ответ: $responseBody")
                 }
             } else {
                 val errorBody = response.body<String>()
@@ -436,22 +438,88 @@ class GigaChatRepository @Inject constructor() {
      * Парсит ответ от GigaChat в структуру оценки рисков
      */
     private fun parseRiskAssessment(response: String): GigaChatRiskAssessment {
+        Log.d(TAG, "=== Парсинг ответа GigaChat ===")
+        Log.d(TAG, "Длина ответа: ${response.length} символов")
+        Log.d(TAG, "Первые 500 символов: ${response.take(500)}")
+        
         // Извлекаем JSON из ответа (на случай если он обернут в текст)
         val jsonStart = response.indexOf('{')
         val jsonEnd = response.lastIndexOf('}')
         
         if (jsonStart == -1 || jsonEnd == -1) {
+            Log.e(TAG, "Не удалось найти JSON в ответе. Начало: $jsonStart, Конец: $jsonEnd")
+            Log.e(TAG, "Полный ответ: $response")
             throw IllegalStateException("Не удалось найти JSON в ответе: $response")
         }
         
-        val jsonStr = response.substring(jsonStart, jsonEnd + 1)
+        Log.d(TAG, "Найден JSON с позиции $jsonStart по $jsonEnd")
+        var jsonStr = response.substring(jsonStart, jsonEnd + 1)
+        Log.d(TAG, "Длина извлеченного JSON: ${jsonStr.length} символов")
+        
+        // Нормализуем нестандартные значения severity от GigaChat
+        jsonStr = normalizeSeverityValues(jsonStr)
+        // Нормализуем нестандартные значения recommendation в массиве recommendations
+        jsonStr = normalizeRecommendationValues(jsonStr)
         
         return try {
-            Json.decodeFromString<GigaChatRiskAssessment>(jsonStr)
+            val assessment = Json.decodeFromString<GigaChatRiskAssessment>(jsonStr)
+            Log.d(TAG, "✅ Успешный парсинг:")
+            Log.d(TAG, "  overallRisk: ${assessment.overallRisk}")
+            Log.d(TAG, "  riskScore: ${assessment.riskScore}")
+            Log.d(TAG, "  riskFactors: ${assessment.riskFactors.size} факторов")
+            Log.d(TAG, "  positiveFactors: ${assessment.positiveFactors.size} факторов")
+            Log.d(TAG, "  recommendations: ${assessment.recommendations.size} рекомендаций")
+            Log.d(TAG, "  detailedAnalysis: ${assessment.detailedAnalysis.length} символов")
+            Log.d(TAG, "  recommendation: ${assessment.recommendation}")
+            assessment
         } catch (e: Exception) {
+            Log.e(TAG, "❌ Ошибка парсинга JSON: ${e.message}")
+            Log.e(TAG, "JSON строка: $jsonStr")
+            e.printStackTrace()
             // Если парсинг не удался, создаём базовую оценку
             createFallbackAssessment(response)
         }
+    }
+    
+    /**
+     * Нормализует нестандартные значения severity от GigaChat
+     * GigaChat может возвращать: MED, HI, VERY, CRIT и т.д.
+     */
+    private fun normalizeSeverityValues(json: String): String {
+        val severityMap = mapOf(
+            "\"MED\"" to "\"MEDIUM\"",
+            "\"HI\"" to "\"HIGH\"",
+            "\"VERY\"" to "\"VERY_HIGH\"",
+            "\"CRIT\"" to "\"CRITICAL\""
+        )
+        var result = json
+        for ((shorthand, full) in severityMap) {
+            result = result.replace(shorthand, full)
+        }
+        return result
+    }
+    
+    /**
+     * Нормализует нестандартные значения recommendation в массиве recommendations
+     * GigaChat может возвращать "REJECT" как элемент массива вместо текстовой рекомендации
+     */
+    private fun normalizeRecommendationValues(json: String): String {
+        val recommendationCodes = listOf("REJECT", "APPROVE", "APPROVE_WITH_CONDITIONS", "REVIEW_REQUIRED")
+        val recommendationDescriptions = mapOf(
+            "REJECT" to "Рекомендуется отклонить заявку",
+            "APPROVE" to "Рекомендуется одобрить заявку",
+            "APPROVE_WITH_CONDITIONS" to "Одобрить с условиями",
+            "REVIEW_REQUIRED" to "Требуется дополнительная проверка"
+        )
+        
+        var result = json
+        for (code in recommendationCodes) {
+            // Заменяем код рекомендации в массиве recommendations на текстовое описание
+            // Ищем шаблон: "REJECT" (внутри массива recommendations)
+            val description = recommendationDescriptions[code] ?: code
+            result = result.replace("\"$code\"", "\"$description\"")
+        }
+        return result
     }
     
     /**

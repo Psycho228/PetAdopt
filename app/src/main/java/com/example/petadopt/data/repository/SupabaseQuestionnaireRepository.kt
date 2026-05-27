@@ -263,6 +263,40 @@ class SupabaseQuestionnaireRepository @Inject constructor(
         Log.d(TAG, "=== Сохранение оценки рисков для userId: $uid ===")
         Log.d(TAG, "riskScore: ${record.riskScore}, overallRisk: ${record.overallRisk}")
         Log.d(TAG, "gigachat_request_id: ${record.gigachat_request_id}")
+        Log.d(TAG, "Длина detailedAnalysis: ${record.detailedAnalysis.length}")
+        Log.d(TAG, "Длина riskFactorsJson: ${record.riskFactorsJson.length}")
+        Log.d(TAG, "Длина positiveFactorsJson: ${record.positiveFactorsJson.length}")
+        Log.d(TAG, "Длина recommendationsJson: ${record.recommendationsJson.length}")
+        
+        // Обрезаем поля до разумных лимитов для избежания проблем с БД
+        val MAX_FIELD_LENGTH = 65535 // Максимальная длина для TEXT в PostgreSQL
+        val safeDetailedAnalysis = if (record.detailedAnalysis.length > MAX_FIELD_LENGTH) {
+            Log.w(TAG, "detailedAnalysis превышает лимит, обрезаю до $MAX_FIELD_LENGTH символов")
+            record.detailedAnalysis.take(MAX_FIELD_LENGTH)
+        } else {
+            record.detailedAnalysis
+        }
+        
+        val safeRiskFactorsJson = if (record.riskFactorsJson.length > MAX_FIELD_LENGTH) {
+            Log.w(TAG, "riskFactorsJson превышает лимит, обрезаю до $MAX_FIELD_LENGTH символов")
+            record.riskFactorsJson.take(MAX_FIELD_LENGTH)
+        } else {
+            record.riskFactorsJson
+        }
+        
+        val safePositiveFactorsJson = if (record.positiveFactorsJson.length > MAX_FIELD_LENGTH) {
+            Log.w(TAG, "positiveFactorsJson превышает лимит, обрезаю до $MAX_FIELD_LENGTH символов")
+            record.positiveFactorsJson.take(MAX_FIELD_LENGTH)
+        } else {
+            record.positiveFactorsJson
+        }
+        
+        val safeRecommendationsJson = if (record.recommendationsJson.length > MAX_FIELD_LENGTH) {
+            Log.w(TAG, "recommendationsJson превышает лимит, обрезаю до $MAX_FIELD_LENGTH символов")
+            record.recommendationsJson.take(MAX_FIELD_LENGTH)
+        } else {
+            record.recommendationsJson
+        }
         
         try {
             val assessmentData = buildJsonObject {
@@ -271,14 +305,19 @@ class SupabaseQuestionnaireRepository @Inject constructor(
                 put("overallRisk", record.overallRisk)
                 put("riskScore", record.riskScore)
                 put("recommendation", record.recommendation)
-                put("detailedAnalysis", record.detailedAnalysis)
-                put("riskFactorsJson", record.riskFactorsJson)
-                put("positiveFactorsJson", record.positiveFactorsJson)
-                put("recommendationsJson", record.recommendationsJson)
+                put("detailedAnalysis", safeDetailedAnalysis)
+                put("riskFactorsJson", safeRiskFactorsJson)
+                put("positiveFactorsJson", safePositiveFactorsJson)
+                put("recommendationsJson", safeRecommendationsJson)
                 put("gigachat_request_id", record.gigachat_request_id)
             }
             
-            Log.d(TAG, "Данные для отправки: $assessmentData")
+            Log.d(TAG, "Данные для отправки (после обрезки):")
+            Log.d(TAG, "  detailedAnalysis: ${safeDetailedAnalysis.length} символов")
+            Log.d(TAG, "  riskFactorsJson: ${safeRiskFactorsJson.length} символов")
+            Log.d(TAG, "  positiveFactorsJson: ${safePositiveFactorsJson.length} символов")
+            Log.d(TAG, "  recommendationsJson: ${safeRecommendationsJson.length} символов")
+            
             Log.d(TAG, "Выполнение INSERT в таблицу $TABLE_RISK_ASSESSMENT...")
             
             val response = postgrest.from(TABLE_RISK_ASSESSMENT).insert(assessmentData)

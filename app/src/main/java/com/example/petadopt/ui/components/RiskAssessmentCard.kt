@@ -79,14 +79,33 @@ fun RiskAssessmentCard(
             
             // Рекомендация
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = when (assessment.recommendation) {
+                    Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFFFEBEE)
+                    Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFFF3E0)
+                    Recommendation.APPROVE -> Color(0xFFF1F8E9)
+                },
                 shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        when (assessment.recommendation) {
+                            Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFD32F2F)
+                            Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFF9800)
+                            Recommendation.APPROVE -> Color(0xFF4CAF50)
+                        },
+                        RoundedCornerShape(8.dp)
+                    )
             ) {
                 Text(
                     text = assessment.recommendationText,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold,
+                    color = when (assessment.recommendation) {
+                        Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFB71C1C)
+                        Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFF6F00)
+                        Recommendation.APPROVE -> Color(0xFF2E7D32)
+                    },
                     modifier = Modifier.padding(12.dp)
                 )
             }
@@ -148,10 +167,37 @@ fun RiskAssessmentCard(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
-                assessment.recommendations.forEach { rec ->
-                    RecommendationItem(rec)
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    assessment.recommendations.forEachIndexed { index, rec ->
+                        // Пропускаем строки, которые являются кодами рекомендации (REJECT, APPROVE и т.д.)
+                        val translatedRec = when (rec.trim().uppercase()) {
+                            "REJECT" -> "Рекомендуется отклонить"
+                            "APPROVE" -> "Рекомендуется одобрить"
+                            "APPROVE_WITH_CONDITIONS" -> "Одобрить с условиями"
+                            "REVIEW_REQUIRED" -> "Требуется дополнительная проверка"
+                            else -> rec
+                        }
+                        
+                        // Пропускаем коды рекомендации, так как они уже отображаются выше
+                        if (rec.trim().uppercase() !in listOf("REJECT", "APPROVE", "APPROVE_WITH_CONDITIONS", "REVIEW_REQUIRED")) {
+                            RecommendationItem(translatedRec)
+                            if (index < assessment.recommendations.lastIndex) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+                    }
+                    
+                    // Если все рекомендации были кодами, показываем сообщение
+                    if (assessment.recommendations.all { it.trim().uppercase() in listOf("REJECT", "APPROVE", "APPROVE_WITH_CONDITIONS", "REVIEW_REQUIRED") }) {
+                        Text(
+                            text = "Нет дополнительных рекомендаций",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -187,48 +233,79 @@ private fun RiskFactorItem(factor: RiskFactor) {
         RiskSeverity.LOW -> Color(0xFFFF9800)
         RiskSeverity.MEDIUM -> Color(0xFFFF5722)
         RiskSeverity.HIGH -> Color(0xFFD32F2F)
+        RiskSeverity.VERY_HIGH -> Color(0xFFB71C1C)
+        RiskSeverity.CRITICAL -> Color(0xFF7F0000)
     }
     
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = when (factor.severity) {
+            RiskSeverity.CRITICAL -> Color(0xFFFFEBEE)
+            RiskSeverity.VERY_HIGH -> Color(0xFFFFE0E0)
+            RiskSeverity.HIGH -> Color(0xFFFFF3E0)
+            RiskSeverity.MEDIUM -> Color(0xFFFFF8E1)
+            RiskSeverity.LOW -> Color(0xFFF5F5F5)
+        },
         shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, severityColor, RoundedCornerShape(8.dp))
     ) {
         Column(
             modifier = Modifier.padding(12.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
             ) {
                 Text(
-                    text = factor.category,
+                    text = factor.category.replaceFirstChar { it.uppercase() },
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    text = when (factor.severity) {
-                        RiskSeverity.LOW -> "Низкий"
-                        RiskSeverity.MEDIUM -> "Средний"
-                        RiskSeverity.HIGH -> "Высокий"
-                    },
-                    color = severityColor,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Surface(
+                    color = severityColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = when (factor.severity) {
+                            RiskSeverity.LOW -> "Низкий"
+                            RiskSeverity.MEDIUM -> "Средний"
+                            RiskSeverity.HIGH -> "Высокий"
+                            RiskSeverity.VERY_HIGH -> "Очень высокий"
+                            RiskSeverity.CRITICAL -> "Критический"
+                        },
+                        color = severityColor,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = factor.description,
-                style = MaterialTheme.typography.bodyMedium
+                text = factor.description.replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             factor.suggestion?.let {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "💡 ${it}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.Top) {
+                    Text(
+                        text = "💡",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = it.replaceFirstChar { it.uppercase() },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -255,19 +332,27 @@ private fun PositiveFactorItem(factor: String) {
 
 @Composable
 private fun RecommendationItem(rec: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(8.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = "📌",
-            style = MaterialTheme.typography.bodyLarge
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = rec,
-            style = MaterialTheme.typography.bodyMedium
-        )
+        Row(
+            verticalAlignment = Alignment.Top,
+            modifier = Modifier.padding(12.dp)
+        ) {
+            Text(
+                text = "📌",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = rec.replaceFirstChar { it.uppercase() },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
 
