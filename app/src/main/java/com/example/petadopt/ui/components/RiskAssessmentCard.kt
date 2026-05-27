@@ -79,20 +79,22 @@ fun RiskAssessmentCard(
             
             // Рекомендация
             Surface(
-                color = when (assessment.recommendation) {
-                    Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFFFEBEE)
-                    Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFFF3E0)
-                    Recommendation.APPROVE -> Color(0xFFF1F8E9)
+                color = when (assessment.recommendation.lowercase()) {
+                    "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFFFEBEE)
+                    "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFFF3E0)
+                    "approve", "рекомендуется одобрить" -> Color(0xFFF1F8E9)
+                    else -> Color(0xFFFFEBEE)
                 },
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .border(
                         1.dp,
-                        when (assessment.recommendation) {
-                            Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFD32F2F)
-                            Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFF9800)
-                            Recommendation.APPROVE -> Color(0xFF4CAF50)
+                        when (assessment.recommendation.lowercase()) {
+                            "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFD32F2F)
+                            "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFF9800)
+                            "approve", "рекомендуется одобрить" -> Color(0xFF4CAF50)
+                            else -> Color(0xFFD32F2F)
                         },
                         RoundedCornerShape(8.dp)
                     )
@@ -101,10 +103,11 @@ fun RiskAssessmentCard(
                     text = assessment.recommendationText,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = when (assessment.recommendation) {
-                        Recommendation.REJECT, Recommendation.REVIEW_REQUIRED -> Color(0xFFB71C1C)
-                        Recommendation.APPROVE_WITH_CONDITIONS -> Color(0xFFFF6F00)
-                        Recommendation.APPROVE -> Color(0xFF2E7D32)
+                    color = when (assessment.recommendation.lowercase()) {
+                        "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFB71C1C)
+                        "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFF6F00)
+                        "approve", "рекомендуется одобрить" -> Color(0xFF2E7D32)
+                        else -> Color(0xFFB71C1C)
                     },
                     modifier = Modifier.padding(12.dp)
                 )

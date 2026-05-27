@@ -9,7 +9,6 @@ import com.example.petadopt.data.model.safetyMeasures
 import com.example.petadopt.data.model.willingTo
 import com.example.petadopt.data.model.GigaChatRiskAssessment
 import com.example.petadopt.data.model.RiskLevel
-import com.example.petadopt.data.model.Recommendation
 import com.example.petadopt.domain.usecase.AssessRiskUseCase
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -533,7 +532,7 @@ class GigaChatRepository @Inject constructor() {
             positiveFactors = listOf("Кандидат прошёл опросник"),
             recommendations = listOf("Провести личную встречу для уточнения деталей"),
             detailedAnalysis = rawResponse.take(500),
-            recommendation = Recommendation.REVIEW_REQUIRED
+            recommendation = "Требуется дополнительная проверка"
         )
     }
 }

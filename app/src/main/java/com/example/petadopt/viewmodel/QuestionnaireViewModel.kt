@@ -373,7 +373,7 @@ class QuestionnaireViewModel @Inject constructor(
                         questionnaire_answer_id = answer.id.ifEmpty { userId },
                         overallRisk = assessment.overallRisk.name,
                         riskScore = assessment.riskScore,
-                        recommendation = assessment.recommendation.name,
+                        recommendation = assessment.recommendation,
                         detailedAnalysis = assessment.detailedAnalysis,
                         riskFactorsJson = json.encodeToString(assessment.riskFactors),
                         positiveFactorsJson = json.encodeToString(assessment.positiveFactors),

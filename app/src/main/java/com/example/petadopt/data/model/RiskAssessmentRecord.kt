@@ -14,7 +14,7 @@ data class RiskAssessmentRecord(
     // Результаты оценки
     val overallRisk: String = "",           // LOW, MEDIUM, HIGH, VERY_HIGH
     val riskScore: Int = 0,                 // 0-100
-    val recommendation: String = "",        // APPROVE, APPROVE_WITH_CONDITIONS, REVIEW_REQUIRED, REJECT
+    val recommendation: String = "",        // Текстовая рекомендация от GigaChat
     
     // Данные для отображения
     val detailedAnalysis: String = "",
@@ -31,5 +31,5 @@ data class RiskAssessmentRecord(
 val RiskAssessmentRecord.overallRiskLevel: RiskLevel
     get() = RiskLevel.valueOf(overallRisk)
 
-val RiskAssessmentRecord.recommendationType: Recommendation
-    get() = Recommendation.valueOf(recommendation)
+val RiskAssessmentRecord.recommendationType: String
+    get() = recommendation

@@ -14,7 +14,8 @@ data class GigaChatRiskAssessment(
     val positiveFactors: List<String>,    // Положительные факторы
     val recommendations: List<String>,    // Рекомендации для пользователя
     val detailedAnalysis: String,         // Развёрнутый анализ
-    val recommendation: Recommendation    // Итоговая рекомендация
+    @JsonNames("recommendation", "recommendation_text", "final_recommendation")
+    val recommendation: String            // Итоговая рекомендация (строка от GigaChat)
 )
 
 @Serializable
@@ -57,14 +58,6 @@ enum class RiskSeverity {
     }
 }
 
-@Serializable
-enum class Recommendation {
-    APPROVE,            // Можно одобрить
-    APPROVE_WITH_CONDITIONS,  // Одобрить с условиями
-    REVIEW_REQUIRED,    // Требуется дополнительная проверка
-    REJECT              // Отклонить
-}
-
 // Расширения для удобного отображения в UI
 val GigaChatRiskAssessment.riskLevelText: String
     get() = when (overallRisk) {
@@ -75,11 +68,12 @@ val GigaChatRiskAssessment.riskLevelText: String
     }
 
 val GigaChatRiskAssessment.recommendationText: String
-    get() = when (recommendation) {
-        Recommendation.APPROVE -> "Рекомендуется одобрить"
-        Recommendation.APPROVE_WITH_CONDITIONS -> "Одобрить с условиями"
-        Recommendation.REVIEW_REQUIRED -> "Требуется дополнительная проверка"
-        Recommendation.REJECT -> "Рекомендуется отклонить"
+    get() = when (recommendation.lowercase()) {
+        "approve", "можно одобрить", "рекомендуется одобрить" -> "Рекомендуется одобрить"
+        "approve_with_conditions", "одобрить с условиями" -> "Одобрить с условиями"
+        "review_required", "требуется дополнительная проверка" -> "Требуется дополнительная проверка"
+        "reject", "отклонить", "рекомендуется отклонить" -> "Рекомендуется отклонить"
+        else -> recommendation // Возвращаем как есть, если не распознано
     }
 
 val GigaChatRiskAssessment.riskColor: String
