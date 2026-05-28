@@ -1,30 +1,38 @@
 package com.example.petadopt.ui.screens
 
 import android.app.Activity
-import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -45,19 +53,16 @@ fun AddEditPetScreen(
     val activity = context as? Activity
     val uiState by viewModel.uiState.collectAsState()
     val scrollState = rememberScrollState()
-    
-    var isEditing by remember { mutableStateOf(petId != null) }
+
+    val isEditing = petId != null
     var showDeleteDialog by remember { mutableStateOf(false) }
-    
-    // Список выбранных изображений (новые, ещё не загруженные)
     var selectedImages by remember { mutableStateOf(listOf<android.net.Uri>()) }
-    
-    // Получаем все изображения из ViewModel (существующие + новые загруженные)
+
     val allImageUrls = remember(uiState.existingImageUrls, uiState.uploadedImages) {
         uiState.existingImageUrls + uiState.uploadedImages
     }
-    
-    // Инициализация значений по умолчанию
+
+    // Поля формы
     var petName by remember { mutableStateOf("") }
     var petAge by remember { mutableStateOf("") }
     var petAgeYears by remember { mutableStateOf(0) }
@@ -76,20 +81,17 @@ fun AddEditPetScreen(
     var isHouseTrained by remember { mutableStateOf(false) }
     var goodWithKids by remember { mutableStateOf(true) }
     var goodWithPets by remember { mutableStateOf(true) }
-    
-    // Теги питомца (максимум 3)
+
     var petTraitsInput by remember { mutableStateOf("") }
     var petTraits by remember { mutableStateOf(emptyList<String>()) }
-    
-    // Загрузка данных питомца при редактировании
-    LaunchedEffect(petId) {
-        if (petId != null) {
-            viewModel.loadPetById(petId)
-        }
-    }
-    
-    // Применение загруженных данных к полям (только при первой загрузке)
+
     var petLoaded by remember { mutableStateOf(false) }
+
+    // Загрузка данных при редактировании
+    LaunchedEffect(petId) {
+        if (petId != null) viewModel.loadPetById(petId)
+    }
+
     LaunchedEffect(uiState.currentPet) {
         val pet = uiState.currentPet ?: return@LaunchedEffect
         if (petLoaded) return@LaunchedEffect
@@ -102,20 +104,19 @@ fun AddEditPetScreen(
         petBreed = pet.breed ?: ""
         petColor = pet.color ?: ""
         petDescription = pet.description ?: ""
-        petLocation = "" // Не хранится в модели Pet
-        petShelterName = "" // Не хранится в модели Pet
-        petShelterContact = "" // Не хранится в модели Pet
-        petEnergyLevel = "medium" // Не хранится в модели Pet
+        petLocation = ""
+        petShelterName = ""
+        petShelterContact = ""
+        petEnergyLevel = "medium"
         isVaccinated = pet.has_vaccination
         isSterilized = pet.is_neutered
-        isHouseTrained = false // Не хранится в модели Pet
-        goodWithKids = true // Не хранится в модели Pet
-        goodWithPets = true // Не хранится в модели Pet
+        isHouseTrained = false
+        goodWithKids = true
+        goodWithPets = true
         petTraits = pet.petTraits
         petTraitsInput = pet.petTraits.joinToString(", ")
     }
 
-    // Launcher для выбора изображений
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
@@ -125,16 +126,13 @@ fun AddEditPetScreen(
         }
     }
 
-    // Обработка успешной загрузки изображений
     LaunchedEffect(uiState.uploadedImages) {
         if (uiState.uploadedImages.isNotEmpty()) {
-            // Очищаем выбранные изображения после загрузки
             selectedImages = emptyList()
             delay(100)
         }
     }
 
-    // Обработка успешного сохранения
     LaunchedEffect(uiState.isSaveSuccessful) {
         if (uiState.isSaveSuccessful) {
             delay(500)
@@ -142,26 +140,28 @@ fun AddEditPetScreen(
             navController.popBackStack()
         }
     }
-    
-    // Очистка данных при выходе со экрана
+
     DisposableEffect(Unit) {
-        onDispose {
-            viewModel.clearCurrentPet()
-        }
+        onDispose { viewModel.clearCurrentPet() }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditing) "Редактировать питомца" else "Новый питомец") },
+                title = {
+                    Text(
+                        if (isEditing) "Редактирование" else "Новый питомец",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, "Назад")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Назад", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = Primary,
+                    titleContentColor = Color.White
                 )
             )
         }
@@ -171,608 +171,655 @@ fun AddEditPetScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(scrollState)
-                .padding(16.dp)
         ) {
-            // Основная информация
-            SectionTitle("Основная информация")
-            Spacer(Modifier.height(12.dp))
-
-            TextField(
-                value = petName,
-                onValueChange = { petName = it },
-                label = { Text("Имя питомца") },
+            // ===== ФОТОГРАФИИ =====
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.Person, null) }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            TextField(
-                value = petAge,
-                onValueChange = { 
-                    petAge = it
-                    petAgeYears = it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0
-                },
-                label = { Text("Возраст (например, 3 года)") },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Default.DateRange, null) }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // Тип питомца
-            Text("Тип питомца", style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 1.dp
             ) {
-                listOf("cat" to "Кошка", "dog" to "Собака", "bird" to "Птица", "other" to "Другое").forEach { (type, label) ->
-                    FilterChip(
-                        selected = petType == type,
-                        onClick = { petType = type },
-                        label = { Text(label) },
-                        modifier = Modifier.weight(1f)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionHeader(
+                        title = "Фотографии",
+                        subtitle = "Добавьте до 6 фото питомца",
+                        icon = Icons.Outlined.PhotoCamera
                     )
-                }
-            }
 
-            Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(12.dp))
 
-            // Пол
-            Text("Пол", style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(Pet.GENDER_MALE to "Мальчик", Pet.GENDER_FEMALE to "Девочка").forEach { (gender, label) ->
-                    FilterChip(
-                        selected = petGender == gender,
-                        onClick = { petGender = gender },
-                        label = { Text(label) }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Размер
-            Text("Размер", style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-            Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf(Pet.SIZE_SMALL to "Маленький", Pet.SIZE_MEDIUM to "Средний", Pet.SIZE_LARGE to "Большой").forEach { (size, label) ->
-                    FilterChip(
-                        selected = petSize == size,
-                        onClick = { petSize = size },
-                        label = { Text(label) }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            TextField(
-                value = petBreed,
-                onValueChange = { petBreed = it },
-                label = { Text("Порода") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            TextField(
-                value = petColor,
-                onValueChange = { petColor = it },
-                label = { Text("Окрас") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            // Фотографии
-            SectionTitle("Фотографии")
-            Spacer(Modifier.height(12.dp))
-
-            // Сетка изображений
-            if (allImageUrls.isNotEmpty() || selectedImages.isNotEmpty()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                ) {
-                    // Существующие фото с сервера
-                    items(uiState.existingImageUrls) { url ->
-                        val index = uiState.existingImageUrls.indexOf(url)
-                        Box(
+                    if (allImageUrls.isNotEmpty() || selectedImages.isNotEmpty()) {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(3),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(1.dp, Color.Gray.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .fillMaxWidth()
+                                .height(if (allImageUrls.size + selectedImages.size < 3) 120.dp else 240.dp)
                         ) {
-                            AsyncImage(
-                                model = url,
-                                contentDescription = "Фото питомца",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                            // Кнопка удаления
-                            IconButton(
-                                onClick = { 
-                                    viewModel.removeImage(index)
-                                    viewModel.deleteImageFromServer(url)
-                                },
-                                modifier = Modifier
-                                    .align(androidx.compose.ui.Alignment.TopEnd)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                    .padding(4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    "Удалить",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                            // Существующие фото
+                            items(uiState.existingImageUrls) { url ->
+                                PhotoThumbnail(
+                                    url = url,
+                                    onDelete = {
+                                        viewModel.removeImage(uiState.existingImageUrls.indexOf(url))
+                                        viewModel.deleteImageFromServer(url)
+                                    }
                                 )
                             }
-                        }
-                    }
-                    // Новые загруженные фото
-                    items(uiState.uploadedImages) { url ->
-                        val index = uiState.existingImageUrls.size + uiState.uploadedImages.indexOf(url)
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(1.dp, Color.Gray.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        ) {
-                            AsyncImage(
-                                model = url,
-                                contentDescription = "Фото питомца",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                            // Кнопка удаления
-                            IconButton(
-                                onClick = { 
-                                    viewModel.removeImage(index)
-                                    viewModel.deleteImageFromServer(url)
-                                },
-                                modifier = Modifier
-                                    .align(androidx.compose.ui.Alignment.TopEnd)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                    .padding(4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    "Удалить",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                            // Загруженные
+                            items(uiState.uploadedImages) { url ->
+                                val idx = uiState.existingImageUrls.size + uiState.uploadedImages.indexOf(url)
+                                PhotoThumbnail(
+                                    url = url,
+                                    onDelete = {
+                                        viewModel.removeImage(idx)
+                                        viewModel.deleteImageFromServer(url)
+                                    }
                                 )
                             }
-                        }
-                    }
-                    // Новые выбранные фото (ещё не загружены)
-                    items(selectedImages) { uri ->
-                        val index = uiState.existingImageUrls.size + uiState.uploadedImages.size + selectedImages.indexOf(uri)
-                        Box(
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .clip(RoundedCornerShape(8.dp))
-                                .border(1.dp, Color.Gray.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = "Фото питомца",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                            // Кнопка удаления
-                            IconButton(
-                                onClick = { 
-                                    viewModel.removeImage(index)
-                                    val indexToRemove = selectedImages.indexOf(uri)
-                                    selectedImages = selectedImages.filterIndexed { i, _ -> i != indexToRemove }
-                                },
-                                modifier = Modifier
-                                    .align(androidx.compose.ui.Alignment.TopEnd)
-                                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
-                                    .padding(4.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    "Удалить",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
+                            // Выбранные (ещё не загружены)
+                            items(selectedImages) { uri ->
+                                val idx = uiState.existingImageUrls.size + uiState.uploadedImages.size + selectedImages.indexOf(uri)
+                                Box(
+                                    modifier = Modifier
+                                        .aspectRatio(1f)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                                ) {
+                                    AsyncImage(model = uri, null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                                    IconButton(
+                                        onClick = {
+                                            viewModel.removeImage(idx)
+                                            selectedImages = selectedImages.filterIndexed { i, _ -> i != selectedImages.indexOf(uri) }
+                                        },
+                                        modifier = Modifier.align(Alignment.TopEnd).padding(2.dp).size(24.dp)
+                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.Close, "Удалить", tint = Color.White, modifier = Modifier.size(14.dp))
+                                    }
+                                }
+                            }
+                            // Кнопка добавления
+                            item {
+                                AddPhotoButton(onClick = { imagePickerLauncher.launch("image/*") })
                             }
                         }
+                    } else {
+                        // Крупная кнопка добавления
+                        AddPhotoPlaceholder(onClick = { imagePickerLauncher.launch("image/*") })
                     }
-                    
-                    // Кнопка добавления
-                    item {
-                        OutlinedButton(
-                            onClick = { imagePickerLauncher.launch("image/*") },
-                            modifier = Modifier
-                                .aspectRatio(1f)
-                                .padding(4.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.Add, null)
-                        }
-                    }
-                }
-            } else {
-                OutlinedButton(
-                    onClick = { imagePickerLauncher.launch("image/*") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Add,
-                            null,
-                            modifier = Modifier.size(32.dp),
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+
+                    if (uiState.uploadingImages) {
+                        Spacer(Modifier.height(8.dp))
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Primary)
                         Spacer(Modifier.height(4.dp))
-                        Text("Добавить фото", style = MaterialTheme.typography.bodyMedium)
+                        Text("Загрузка фото...", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
             }
 
-            if (uiState.uploadingImages) {
-                Spacer(Modifier.height(12.dp))
-                Row(
-                    horizontalArrangement = Arrangement.Center,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("Загрузка...", color = TextSecondary)
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // Характеристики
-            SectionTitle("Характеристики")
-            Spacer(Modifier.height(12.dp))
-
-            CheckboxRow("Приучен к лотку/поводку", isHouseTrained) { isHouseTrained = it }
-            CheckboxRow("Ладит с детьми", goodWithKids) { goodWithKids = it }
-            CheckboxRow("Ладит с животными", goodWithPets) { goodWithPets = it }
-
-            Spacer(Modifier.height(16.dp))
-
-            Text("Уровень активности", style = MaterialTheme.typography.bodyMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
             Spacer(Modifier.height(8.dp))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                listOf("low" to "Низкий", "medium" to "Средний", "high" to "Высокий").forEach { (level, label) ->
+
+            // ===== ОСНОВНАЯ ИНФОРМАЦИЯ =====
+            SectionCard {
+                SectionHeader(
+                    title = "Основная информация",
+                    subtitle = "Имя, возраст и базовые данные",
+                    icon = Icons.Outlined.Info
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = petName,
+                    onValueChange = { petName = it },
+                    label = { Text("Имя питомца") },
+                    placeholder = { Text("Например: Барсик") },
+                    leadingIcon = { Icon(Icons.Outlined.Pets, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = outlinedFieldColors()
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = petAge,
+                    onValueChange = {
+                        petAge = it
+                        petAgeYears = it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0
+                    },
+                    label = { Text("Возраст") },
+                    placeholder = { Text("Например: 3 года") },
+                    leadingIcon = { Icon(Icons.Outlined.CalendarMonth, null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = outlinedFieldColors()
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                // Тип — чипы с иконками
+                Text("Тип питомца", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        Triple("cat", "Кошка", Icons.Outlined.Pets),
+                        Triple("dog", "Собака", Icons.Outlined.Park),
+                        Triple("bird", "Птица", Icons.Outlined.Flight),
+                        Triple("other", "Другое", Icons.Outlined.MoreHoriz)
+                    ).forEach { (type, label, icon) ->
+                        FilterChip(
+                            selected = petType == type,
+                            onClick = { petType = type },
+                            label = { Text(label, fontSize = 11.sp, textAlign = TextAlign.Center) },
+                            leadingIcon = { Icon(icon, null, modifier = Modifier.size(16.dp)) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // Пол
+                Text("Пол", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
-                        selected = petEnergyLevel == level,
-                        onClick = { petEnergyLevel = level },
-                        label = { Text(label) }
+                        selected = petGender == Pet.GENDER_MALE,
+                        onClick = { petGender = Pet.GENDER_MALE },
+                        label = { Text("♂ Мальчик") },
+                        leadingIcon = { Icon(Icons.Outlined.Male, null, Modifier.size(16.dp)) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    FilterChip(
+                        selected = petGender == Pet.GENDER_FEMALE,
+                        onClick = { petGender = Pet.GENDER_FEMALE },
+                        label = { Text("♀ Девочка") },
+                        leadingIcon = { Icon(Icons.Outlined.Female, null, Modifier.size(16.dp)) },
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                // Размер
+                Text("Размер", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(Pet.SIZE_SMALL to "Маленький", Pet.SIZE_MEDIUM to "Средний", Pet.SIZE_LARGE to "Большой").forEach { (size, label) ->
+                        FilterChip(
+                            selected = petSize == size,
+                            onClick = { petSize = size },
+                            label = { Text(label) },
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = petBreed,
+                        onValueChange = { petBreed = it },
+                        label = { Text("Порода") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = outlinedFieldColors()
+                    )
+                    OutlinedTextField(
+                        value = petColor,
+                        onValueChange = { petColor = it },
+                        label = { Text("Окрас") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = outlinedFieldColors()
                     )
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // Медицинская информация
-            SectionTitle("Медицинская информация")
-            Spacer(Modifier.height(12.dp))
+            // ===== ХАРАКТЕРИСТИКИ =====
+            SectionCard {
+                SectionHeader(
+                    title = "Характер и особенности",
+                    subtitle = "Помогите найти идеального хозяина",
+                    icon = Icons.Outlined.EmojiEmotions
+                )
 
-            CheckboxRow("Привит", isVaccinated) { isVaccinated = it }
-            CheckboxRow("Стерилизован/кастрирован", isSterilized) { isSterilized = it }
+                Spacer(Modifier.height(16.dp))
 
-            Spacer(Modifier.height(24.dp))
+                // Уровень активности
+                Text("Уровень активности", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(
+                        Triple("low", "Спокойный", Icons.Outlined.SelfImprovement),
+                        Triple("medium", "Умеренный", Icons.Outlined.DirectionsWalk),
+                        Triple("high", "Энергичный", Icons.Outlined.Bolt)
+                    ).forEach { (level, label, icon) ->
+                        FilterChip(
+                            selected = petEnergyLevel == level,
+                            onClick = { petEnergyLevel = level },
+                            label = { Text(label, fontSize = 12.sp) },
+                            leadingIcon = { Icon(icon, null, Modifier.size(16.dp)) },
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+                }
 
-            // Теги питомца
-            SectionTitle("Теги")
-            Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
 
-            Column(modifier = Modifier.fillMaxWidth()) {
-                TextField(
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Spacer(Modifier.height(8.dp))
+
+                // Чекбоксы в 2 колонки
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        SwitchRow("Приучен", isHouseTrained, Icons.Outlined.House) { isHouseTrained = it }
+                        SwitchRow("Ладит с детьми", goodWithKids, Icons.Outlined.ChildCare) { goodWithKids = it }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        SwitchRow("Ладит с животными", goodWithPets, Icons.Outlined.Groups) { goodWithPets = it }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // ===== ЗДОРОВЬЕ =====
+            SectionCard {
+                SectionHeader(
+                    title = "Здоровье",
+                    subtitle = "Медицинская информация",
+                    icon = Icons.Outlined.LocalHospital
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        SwitchRow("Вакцинирован", isVaccinated, Icons.Outlined.Vaccines) { isVaccinated = it }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        SwitchRow("Стерилизован", isSterilized, Icons.Outlined.FavoriteBorder) { isSterilized = it }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // ===== ТЕГИ =====
+            SectionCard {
+                SectionHeader(
+                    title = "Теги",
+                    subtitle = "До 3 ключевых слов",
+                    icon = Icons.Outlined.Label
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                OutlinedTextField(
                     value = petTraitsInput,
                     onValueChange = { input ->
                         petTraitsInput = input
-                        // Разбиваем по запятым и фильтруем пустые
-                        petTraits = input
-                            .split(",")
-                            .map { it.trim() }
-                            .filter { it.isNotBlank() }
-                            .take(3) // Максимум 3 тега
+                        petTraits = input.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3)
                     },
-                    label = { Text("Теги (через запятую, максимум 3)") },
+                    label = { Text("Введите через запятую") },
+                    placeholder = { Text("Дружелюбный, игривый, спокойный") },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = outlinedFieldColors(),
                     supportingText = {
-                        val count = petTraits.count()
-                        Text(
-                            text = "$count / 3 тегов",
-                            color = if (count > 3) MaterialTheme.colorScheme.error else TextSecondary
-                        )
-                    },
-                    enabled = petTraits.count() < 3 || petTraitsInput.split(",").map { it.trim() }.filter { it.isNotBlank() }.count() == petTraits.count()
+                        Text("${petTraits.size} / 3", color = if (petTraits.size >= 3) MaterialTheme.colorScheme.error else TextSecondary)
+                    }
                 )
-                
-                Spacer(Modifier.height(8.dp))
-                
-                // Отображение выбранных тегов
+
                 if (petTraits.isNotEmpty()) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                         petTraits.forEach { trait ->
-                            FilterChip(
+                            InputChip(
                                 selected = true,
                                 onClick = {
-                                    // Удаление тега по клику
-                                    petTraitsInput = petTraitsInput.removePrefix("$trait,").removePrefix("$trait ").removeSuffix(", $trait").removeSuffix(", $trait").removeSuffix(",")
-                                    petTraits = petTraitsInput
-                                        .split(",")
-                                        .map { it.trim() }
-                                        .filter { it.isNotBlank() }
-                                        .take(3)
+                                    petTraitsInput = petTraitsInput.removePrefix("$trait,").removePrefix("$trait ").removeSuffix(", $trait").removeSuffix(",$trait").trim()
+                                    petTraits = petTraitsInput.split(",").map { it.trim() }.filter { it.isNotBlank() }.take(3)
                                 },
-                                label = { Text(trait) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = Primary.copy(alpha = 0.2f),
-                                    selectedLabelColor = Primary
-                                )
+                                label = { Text(trait, fontSize = 12.sp) },
+                                trailingIcon = { Icon(Icons.Default.Close, "Удалить", Modifier.size(16.dp)) },
+                                shape = RoundedCornerShape(10.dp)
                             )
                         }
                     }
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
 
-            // Описание
-            SectionTitle("Описание")
-            Spacer(Modifier.height(12.dp))
+            // ===== ОПИСАНИЕ =====
+            SectionCard {
+                SectionHeader(
+                    title = "Описание",
+                    subtitle = "Расскажите о питомце подробнее",
+                    icon = Icons.Outlined.Description
+                )
 
-            TextField(
-                value = petDescription,
-                onValueChange = { petDescription = it },
-                label = { Text("Описание питомца") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                maxLines = 6
-            )
+                Spacer(Modifier.height(12.dp))
 
-            Spacer(Modifier.height(24.dp))
+                OutlinedTextField(
+                    value = petDescription,
+                    onValueChange = { petDescription = it },
+                    label = { Text("Опишите характер, привычки, историю") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp),
+                    maxLines = 5,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = outlinedFieldColors()
+                )
+            }
 
-            // Информация о приюте
-            SectionTitle("Информация о приюте")
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
 
-            TextField(
-                value = petShelterName,
-                onValueChange = { petShelterName = it },
-                label = { Text("Название приюта") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            TextField(
-                value = petShelterContact,
-                onValueChange = { petShelterContact = it },
-                label = { Text("Контакт приюта") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            TextField(
-                value = petLocation,
-                onValueChange = { petLocation = it },
-                label = { Text("Город/район") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(Modifier.height(32.dp))
-
-            // Кнопки
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.weight(1f)
+            // ===== ОШИБКА =====
+            AnimatedVisibility(visible = uiState.error != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Отмена")
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Outlined.Error, null, tint = MaterialTheme.colorScheme.error)
+                        Spacer(Modifier.width(8.dp))
+                        Text(uiState.error ?: "", color = MaterialTheme.colorScheme.onErrorContainer)
+                    }
                 }
+                Spacer(Modifier.height(8.dp))
+            }
 
-                Button(
-                    onClick = {
-                        // Основное изображение - первое из всех доступных
-                        val mainImageUrl = allImageUrls.firstOrNull() ?: ""
-                        
-                        // Дополнительные фото - все остальные
-                        val additionalPhotos = allImageUrls.drop(1).filter { it.isNotBlank() }
-                        
-                        // shelter_id: при редактировании берём из загруженного питомца, при создании - пустой
-                        val currentShelterId = if (isEditing && uiState.currentPet != null) {
-                            uiState.currentPet!!.shelter_id
+            // ===== КНОПКИ ДЕЙСТВИЙ =====
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shadowElevation = 4.dp,
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Button(
+                        onClick = {
+                            val mainImageUrl = allImageUrls.firstOrNull() ?: ""
+                            val additionalPhotos = allImageUrls.drop(1).filter { it.isNotBlank() }
+                            val currentShelterId = if (isEditing && uiState.currentPet != null) {
+                                uiState.currentPet!!.shelter_id
+                            } else ""
+                            val pet = Pet(
+                                id = petId ?: "",
+                                shelter_id = currentShelterId,
+                                name = petName,
+                                age = petAge.toIntOrNull() ?: 0,
+                                type = petType,
+                                gender = petGender,
+                                size = petSize,
+                                breed = petBreed,
+                                color = petColor,
+                                description = petDescription,
+                                photo_url = mainImageUrl,
+                                additional_photos = additionalPhotos,
+                                traits = petTraits.ifEmpty { null },
+                                is_neutered = isSterilized,
+                                has_vaccination = isVaccinated,
+                                weight = null,
+                                is_active = true
+                            )
+                            if (isEditing) viewModel.updatePet(pet) else viewModel.createPet(pet)
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        enabled = petName.isNotBlank() && !uiState.isLoading && !uiState.uploadingImages,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary)
+                    ) {
+                        if (uiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White)
                         } else {
-                            ""
+                            Icon(
+                                if (isEditing) Icons.Outlined.Save else Icons.Outlined.Add,
+                                null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                if (isEditing) "Сохранить изменения" else "Создать питомца",
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        
-                        val pet = Pet(
-                            id = petId ?: "",
-                            shelter_id = currentShelterId,
-                            name = petName,
-                            age = petAge.toIntOrNull() ?: 0,
-                            type = petType,
-                            gender = petGender,
-                            size = petSize,
-                            breed = petBreed,
-                            color = petColor,
-                            description = petDescription,
-                            photo_url = mainImageUrl,
-                            additional_photos = additionalPhotos,
-                            traits = petTraits.ifEmpty { null },
-                            is_neutered = isSterilized,
-                            has_vaccination = isVaccinated,
-                            weight = null,
-                            is_active = true
-                        )
-                        android.util.Log.d("AddEditPet", "Saving pet: id=${pet.id}, name=${pet.name}")
-                        android.util.Log.d("AddEditPet", "  shelter_id=$currentShelterId, isEditing=$isEditing")
-                        android.util.Log.d("AddEditPet", "  traits=${pet.traits}, count=${pet.traits?.size ?: 0}")
-                        android.util.Log.d("AddEditPet", "  additional_photos=${pet.additional_photos}, count=${pet.additional_photos?.size ?: 0}")
-                        android.util.Log.d("AddEditPet", "  photo_url=${pet.photo_url}")
+                    }
 
-                        if (isEditing) {
-                            viewModel.updatePet(pet)
-                        } else {
-                            viewModel.createPet(pet)
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(14.dp)
+                    ) {
+                        Text("Отмена")
+                    }
+
+                    // Кнопка удаления при редактировании
+                    if (isEditing && petId != null) {
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = { showDeleteDialog = true },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Outlined.DeleteForever, null, tint = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Удалить питомца", color = MaterialTheme.colorScheme.error)
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = petName.isNotBlank() && !uiState.isLoading && !uiState.uploadingImages
-                ) {
-                    if (uiState.isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = Color.White
-                        )
-                    } else {
-                        Text(if (isEditing) "Сохранить" else "Создать")
                     }
                 }
             }
 
             Spacer(Modifier.height(16.dp))
-
-            if (uiState.error != null) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-                ) {
-                    Text(
-                        "Ошибка: ${uiState.error}",
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.padding(12.dp)
-                    )
-                }
-            }
-
-            // Кнопка удаления питомца (только при редактировании)
-            if (isEditing && petId != null) {
-                Spacer(Modifier.height(24.dp))
-                OutlinedButton(
-                    onClick = { showDeleteDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        "Удалить",
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        "Удалить питомца",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-            }
         }
     }
 
-    // Диалог подтверждения удаления
+    // Диалог удаления
     if (showDeleteDialog && petId != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = {
-                Icon(
-                    Icons.Default.Warning,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error
-                )
+                Icon(Icons.Outlined.DeleteForever, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(36.dp))
             },
-            title = { Text("Удалить питомца") },
-            text = { Text("Вы уверены, что хотите удалить этого питомца? Это действие нельзя отменить. Все фотографии будут удалены из хранилища.") },
+            title = { Text("Удалить питомца?", fontWeight = FontWeight.Bold) },
+            text = { Text("Это действие необратимо. Все фото будут удалены из хранилища.") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         viewModel.deletePet(petId)
                         showDeleteDialog = false
                         navController.popBackStack()
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                ) {
-                    Text("Удалить", color = MaterialTheme.colorScheme.error)
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Удалить") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Отмена")
-                }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Отмена") }
             }
         )
     }
 }
 
+// ===================== PHOTO THUMBNAIL =====================
 @Composable
-private fun SectionTitle(title: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
+private fun PhotoThumbnail(url: String, onDelete: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+    ) {
+        AsyncImage(model = url, null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        IconButton(
+            onClick = onDelete,
             modifier = Modifier
-                .width(4.dp)
-                .height(24.dp)
-                .background(color = Primary, shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp))
-        )
-        Spacer(Modifier.width(12.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-        )
+                .align(Alignment.TopEnd)
+                .padding(2.dp)
+                .size(24.dp)
+                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+        ) {
+            Icon(Icons.Default.Close, "Удалить", tint = Color.White, modifier = Modifier.size(14.dp))
+        }
     }
 }
 
+// ===================== ADD PHOTO BUTTON =====================
 @Composable
-private fun CheckboxRow(label: String, checked: Boolean, onChecked: (Boolean) -> Unit) {
+private fun AddPhotoButton(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Outlined.Add, null, tint = Primary, modifier = Modifier.size(28.dp))
+                Text("Фото", style = MaterialTheme.typography.labelSmall, color = Primary)
+            }
+        }
+    }
+}
+
+// ===================== ADD PHOTO PLACEHOLDER =====================
+@Composable
+private fun AddPhotoPlaceholder(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(2.dp, Primary.copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = Primary.copy(alpha = 0.1f),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.AddAPhoto, null, tint = Primary, modifier = Modifier.size(24.dp))
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Добавить фотографии", fontWeight = FontWeight.Medium, color = Primary)
+            Text("Нажмите, чтобы выбрать из галереи", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        }
+    }
+}
+
+// ===================== SECTION CARD =====================
+@Composable
+private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
+    ) {
+        Column(modifier = Modifier.padding(16.dp), content = content)
+    }
+}
+
+// ===================== SECTION HEADER =====================
+@Composable
+private fun SectionHeader(
+    title: String,
+    subtitle: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = Primary.copy(alpha = 0.1f),
+            modifier = Modifier.size(36.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = Primary, modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        }
+    }
+}
+
+// ===================== SWITCH ROW =====================
+@Composable
+private fun SwitchRow(
+    label: String,
+    checked: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onChecked: (Boolean) -> Unit
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .clickable { onChecked(!checked) }
+            .padding(vertical = 6.dp)
     ) {
-        Checkbox(
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = if (checked) Primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.size(32.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = if (checked) Primary else TextSecondary, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.width(10.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(
             checked = checked,
-            onCheckedChange = onChecked
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 8.dp)
+            onCheckedChange = onChecked,
+            colors = SwitchDefaults.colors(checkedThumbColor = Primary, checkedTrackColor = Primary.copy(alpha = 0.3f))
         )
     }
 }
+
+// ===================== OUTLINED FIELD COLORS =====================
+@Composable
+private fun outlinedFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Primary,
+    focusedLabelColor = Primary,
+    cursorColor = Primary
+)

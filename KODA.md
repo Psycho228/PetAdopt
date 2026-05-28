@@ -7,13 +7,13 @@
 ### Основные функции
 - **Свайп-механика** — поиск питомцев по принципу Tinder (лайк/дизлайк)
 - **Заявки** — подача заявок на пристройство питомца с отслеживанием статуса
-- **Опросник** — детальная анкета потенциального хозяина (6 разделов, 37 вопросов) с Material 3 UI
+- **Опросник** — детальная анкета потенциального хозяина (7 разделов, 40+ вопросов) с Material 3 UI
 - **Профиль** — управление личными данными, просмотр истории заявок и ответов на опросник
 - **Совпадения** — список лайкнутых питомцев с возможностью удаления лайков
 - **Админ-панель** — управление питомцами (добавление, редактирование) для приютов
 - **Кабинет приюта** — статистика, управление питомцами, просмотр заявок
 - **Управление заявками** — просмотр списка заявок на питомца, детальный экран с опросником и оценкой рисков, подтверждение/отклонение заявок
-- **Supabase** — аутентификация, PostgreSQL база данных и S3 хранилище
+- **Supabase** — аутентификация, PostgreSQL база данных и Storage
 - **S3 (reg.ru Cloud)** — загрузка фотографий питомцев с SigV4 подписью
 - **GigaChat** — оценка рисков при подаче заявок
 
@@ -26,14 +26,22 @@
 | Архитектура | MVVM + Clean Architecture |
 | DI | Hilt 2.51.1 (kapt) |
 | Бэкенд | Supabase (PostgreSQL + Auth + Storage) |
-| S3 Хранилище | AWS SDK for Kotlin + SigV4 подпись |
-| GigaChat | Ktor Client + yandex-cloud SDK |
-| Навигация | Navigation Compose |
+| S3 Хранилище | AWS SDK for Kotlin v1.2.25 + SigV4 подпись |
+| GigaChat | Ktor Client 2.3.10 + yandex-cloud SDK |
+| Навигация | Navigation Compose 2.8.0 |
 | Картинки | Coil 2.6.0 |
-| Иконки | Material Icons Extended |
-| Сборка | Gradle 8.13 + AGP 8.2.2 |
+| Иконки | Material Icons Extended 1.6.8 |
+| Сборка | Gradle 8.2 + AGP 8.2.2 |
 | Мин SDK | 24 (Android 7.0) |
 | Целевой SDK | 34 (Android 14) |
+
+### Зависимости (libs.versions.toml)
+- `aws.sdk.kotlin:s3` — S3 загрузка фото
+- `supabase-kt` — Supabase клиент (Postgrest, Gotrue, Storage)
+- `ktor-client-*` — HTTP клиент для GigaChat и Supabase
+- `hilt-android` — Dependency Injection
+- `lifecycle-viewmodel-compose` — ViewModel в Compose
+- `kotlinx-serialization-json` — JSON сериализация
 
 ## 📁 Структура проекта (Clean Architecture)
 
@@ -118,6 +126,9 @@ app/src/main/java/com/example/petadopt/
 │   ├── QuestionnaireViewModel.kt
 │   └── SwipeViewModel.kt
 └── util/                   # Утилиты и расширения
+    ├── S3Config.kt
+    ├── S3SigV4Signer.kt
+    └── SupabaseConfig.kt
 ```
 
 ## 🚀 Сборка и запуск
@@ -134,36 +145,49 @@ app/src/main/java/com/example/petadopt/
    ```bash
    cp .env.example .env
    ```
-2. Заполните `.env` своими ключами (S3, GigaChat, Supabase)
+2. Заполните `.env` своими ключами:
+   ```env
+   S3_ACCESS_KEY=your_access_key
+   S3_SECRET_KEY=your_secret_key
+   S3_BUCKET_NAME=pet-photos
+   S3_ENDPOINT_URL=https://s3.regru.cloud
+   
+   GIGACHAT_CLIENT_ID=your_client_id
+   GIGACHAT_SCOPE=GIGACHAT_API_PERS
+   GIGACHAT_AUTH_KEY=your_auth_key
+   
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your_anon_key
+   ```
 
-### Команды сборки
-```bash
+### Команды сборки (Windows PowerShell)
+```powershell
 # Сборка debug-версии
-./gradlew assembleDebug
+.\gradlew assembleDebug
 
 # Сборка release-версии (с ProGuard)
-./gradlew assembleRelease
+.\gradlew assembleRelease
 
 # Запуск тестов
-./gradlew testDebugUnitTest
+.\gradlew testDebugUnitTest
 
 # Очистка и пересборка
-./gradlew clean assembleDebug
+.\gradlew clean assembleDebug
 ```
 
 > ⚠️ **Важно:** Перед первым запуском создайте `.env` файл на основе `.env.example`. Без ключей сборка покажет предупреждение, но продолжится.
 
 ## 🔧 Supabase конфигурация
 
-### Коллекции (таблицы)
-| Таблица | Описание |
-|---------|----------|
-| `users` | Профили пользователей (id, email, name, role) |
-| `pets` | Данные питомцев (имя, возраст, вид, описание, фото) |
-| `applications` | Заявки на пристройство (userId, petId, status, timestamp) |
-| `questionnaire_answers` | Ответы на опросник (userId + все поля анкеты) |
-| `likes` | Лайки пользователей (userId, petId, created_at) |
-| `risk_assessments` | Оценки рисков от GigaChat |
+### Таблицы
+| Таблица | Описание | Колонки |
+|---------|----------|---------|
+| `users` | Профили пользователей | `id`, `email`, `name`, `role`, `phone`, `created_at` |
+| `pets` | Данные питомцев | `id`, `shelter_id`, `name`, `age`, `type`, `gender`, `size`, `breed`, `color`, `weight`, `description`, `photo_url`, `additional_photos`, `traits`, `is_neutered`, `has_vaccination`, `is_active`, `created_at`, `updated_at` |
+| `applications` | Заявки на пристройство | `id`, `user_id`, `user_name`, `user_email`, `pet_id`, `pet_name`, `message`, `contact_time`, `status`, `created_at`, `updated_at` |
+| `questionnaire_answers` | Ответы на опросник | `id`, `user_id`, все поля опросника (q1_*, q2_*, ...), `created_at`, `updated_at` |
+| `likes` | Лайки пользователей | `id`, `user_id`, `pet_id`, `created_at` |
+| `risk_assessments` | Оценки рисков от GigaChat | `id`, `user_id`, `application_id`, `assessment_data`, `created_at` |
 
 ### Роли пользователей
 - `user` — обычный пользователь (ищет питомца)
@@ -176,10 +200,17 @@ app/src/main/java/com/example/petadopt/
 - `approved` — заявка одобрена
 - `rejected` — заявка отклонена
 
-## 📝 Опросник (6 разделов, 37 вопросов)
+### RLS политики
+- `pets`: публичное чтение, редактирование только для `shelter`/`admin`
+- `applications`: чтение только владельцу/приюту, запись для всех авторизованных
+- `questionnaire_answers`: чтение/запись только владельцу
+- `likes`: чтение/запись только владельцу
+- `risk_assessments`: чтение только для приюта, запись для системы
+
+## 📝 Опросник (7 разделов, 40+ вопросов)
 
 ### UI-реализация
-- **Пошаговая навигация** — 6 секций с прогресс-баром
+- **Пошаговая навигация** — 7 секций с прогресс-баром
 - **Анимации** — slide, fade, scale при переходе между шагами
 - **Валидация полей**:
   - **Обязательность** — все поля провераются перед переходом на следующий шаг
@@ -192,20 +223,21 @@ app/src/main/java/com/example/petadopt/
   - `CheckboxGroup` — группа чекбоксов для множественного выбора
   - `YesNo` — кнопки Да/Нет с визуальной индикацией
 
-### Раздел 1: Основная информация (5 вопросов)
+### Раздел 1: Основная информация (6 вопросов)
 - Как вас зовут? (Text, **обязательно**)
 - Сколько вам лет? (Text, **обязательно**, только числа 18-120)
 - В каком городе вы живёте? (Dropdown, **обязательно**)
 - Чем вы занимаетесь? (Text, **обязательно**)
-- Как с вами лучше связаться? (Text, **обязательно**)
+- Как с вами лучше связаться? (Text: телефон, **обязательно**)
+- Ваш email? (Text: email, **обязательно**)
 
-### Раздел 2: Жилищные условия (10 вопросов)
+### Раздел 2: Жилищные условия (11 вопросов)
 - Где вы живёте? (Dropdown: Квартира/Частный дом/Съёмное жильё/Другое, **обязательно**)
 - Разрешены ли животные в вашем жилье? (YesNo, **обязательно**)
-- С кем вы живёте? (Dropdown: Один/Семья/Друзья/Другое, **обязательно**)
+- С кем вы живёте? (CheckboxGroup: Один/Семья/Друзья/Другое, **обязательно**)
 - Все ли члены семьи согласны? (YesNo, **обязательно**)
 - Есть ли у вас дети? (YesNo, **обязательно**)
-- Если да — какого возраста? (Text, **обязательно если есть дети**, только числа)
+- Если да — какого возраста? (Text, **обязательно если есть дети**)
 - Есть ли у вас другие животные? (YesNo, **обязательно**)
 - Если да — то какие? (Text, **обязательно если есть другие животные**)
 - Сколько часов в день питомец будет один? (Text, **обязательно**, только числа 0-24)
@@ -219,7 +251,7 @@ app/src/main/java/com/example/petadopt/
 - Опыт с животными с особенностями? (YesNo, **обязательно**)
 - Почему решили взять питомца именно сейчас? (Text, **обязательно**)
 
-### Раздел 4: Ответственность и готовность (9 вопросов)
+### Раздел 4: Ответственность и готовность (10 вопросов)
 - Понимаете ли вы, что потребуется? (CheckboxGroup: Время/Внимание/Обучение/Ветпомощь, **минимум 1**)
 - Готовы ли к расходам на? (CheckboxGroup: Корм/Ветеринар/Лекарства/Прививки/Груминг, **минимум 1**)
 - Что будете делать, если питомец испортит мебель? (Text, **обязательно**)
@@ -230,9 +262,11 @@ app/src/main/java/com/example/petadopt/
 - Что будете делать при изменении обстоятельств? (Text, **обязательно**)
 - Есть ли препятствия в ближайший год? (Text, **обязательно**)
 
-### Раздел 5: Безопасность (3 вопроса)
-- Установлены ли? (CheckboxGroup: Сетки/Безопасные балконы/Ограждения, **минимум 1**)
-- Готовы ли? (CheckboxGroup: Стерилизовать/Соблюдать рекомендации/Адресник, **минимум 1**)
+### Раздел 5: Безопасность (4 вопроса)
+- Установлены ли меры безопасности? (CheckboxGroup: Сетки/Безопасные балконы/Ограждения, **минимум 1**)
+- Готовы ли к стерилизации? (YesNo, **обязательно**)
+- Готовы ли следовать рекомендациям? (YesNo, **обязательно**)
+- Готовы ли установить адресник? (YesNo, **обязательно**)
 - Готовы ли поддерживать связь после пристройства? (YesNo, **обязательно**)
 
 ### Раздел 6: Эмоциональная часть (3 вопроса)
@@ -240,26 +274,41 @@ app/src/main/java/com/example/petadopt/
 - Как представляете жизнь с питомцем? (Text, **обязательно**)
 - Почему именно вы станете хорошим хозяином? (Text, **обязательно**)
 
+### Раздел 7: Желаемые виды животных (1 вопрос)
+- Какие питомцы вас интересуют? (CheckboxGroup: Собаки/Кошки/Птицы/Грызуны/Другое, **минимум 1**)
+
 ## 🎨 Дизайн-система
 
 ### Цветовая палитра
 ```kotlin
-val Primary = Color(0xFF6200EE)      // Фиолетовый (основной)
-val Background = Color(0xFFFFFFFF)   // Белый (фон)
-val TextSecondary = Color(0xFF757575) // Серый (вторичный текст)
+val Primary = Color(0xFF6C63FF)         // Фиолетовый (основной)
+val PrimaryVariant = Color(0xFF5A52E0)  // Тёмно-фиолетовый
+val Background = Color(0xFFF8F9FE)      // Светло-серый фон
+val Card = Color.White                  // Карточки
+val TextPrimary = Color(0xFF1C1C1C)     // Основной текст
+val TextSecondary = Color(0xFF6E6E6E)   // Вторичный текст
+val Like = Color(0xFF4CAF50)            // Зелёный (лайк)
+val Dislike = Color(0xFFF44336)         // Красный (дизлайк)
+val SurfaceLight = Color(0xFFF0F0F5)    // Светлая поверхность
 ```
 
 ### UI компоненты
 | Компонент | Описание |
 |-----------|----------|
 | `PrimaryButton` | Кнопка на всю ширину, фиолетовый фон, белый текст |
-| `Screen` | Контейнер экрана с отступами 16dp и белым фоном |
+| `Screen` | Контейнер экрана с отступами и фоном |
 | `SwipeCard` | Карточка с жестом свайпа (порог 320px) |
 | `PetCard` | Карточка питомца с изображением и тегами |
 | `RiskAssessmentCard` | Карточка оценки рисков от GigaChat |
 | `QuestionCard` | Карточка вопроса с иконкой и скруглёнными углами (16dp) |
+| `StatTile` | Карточка статистики с иконкой, значением и цветовым акцентом |
+| `StatusFilterRow` | Горизонтальная полоса FilterChip для фильтрации по статусам |
+| `DetailedRiskAssessment` | Детальный блок оценки рисков с градиентной шапкой, прогресс-баром и секциями |
 | `ExposedDropdownMenu` | Выпадающий список Material 3 |
 | `CheckboxGroup` | Группа чекбоксов для множественного выбора |
+| `StatusBanner` | Банер статуса заявки с иконкой и цветовым фоном |
+| `FactorSection` | Секция факторов риска (положительных/отрицательных) |
+| `QuestionnaireExpandable` | Сворачиваемый раздел опросника с анимированным раскрытием |
 
 ### Анимации опросника
 - Переходы между шагами: `slideInHorizontally` + `fadeIn` / `slideOutHorizontally` + `fadeOut`
@@ -313,29 +362,24 @@ class SwipeViewModel @Inject constructor(
 - `viewModelScope.launch` для асинхронных операций
 - Обработка ошибок через `try-catch`
 
-### Навигация
-```kotlin
-// Routes
-composable("auth") { AuthScreen(...) }
-composable("loading") { ... }
-composable("onboarding") { OnboardingScreen(...) }
-composable("questionnaire") { QuestionnaireScreen(onFinish = {...}) }
-composable("swipe") { SwipeScreen(...) }
-composable("details/{petId}") { DetailsScreen(...) }
-composable("application/{petId}/{petName}") { ApplicationScreen(...) }
-composable("matches") { MatchesScreen(...) }
-composable("account") { AccountScreen(...) }
-composable("edit_profile") { EditProfileScreen(...) }
-composable("applications") { ApplicationsScreen(...) }
-composable("admin") { AdminScreen(...) -> ShelterScreen(...) }
-composable("shelter") { ShelterScreen(...) }
-composable("admin/addPet") { AddEditPetScreen(...) }
-composable("admin/editPet/{petId}") { AddEditPetScreen(...) }
-
-// Переход с аргументами
-navController.navigate("details/$petId")
-// Получение в экране:
-val petId = backStackEntry.arguments?.getString("petId")
+### Навигация (routes)
+```
+auth                  — экран авторизации
+loading               — экран загрузки (проверка сессии)
+onboarding            — онбординг
+questionnaire         — опросник (7 разделов)
+swipe                 — свайп-экран
+details/{petId}       — детали питомца
+application/{petId}/{petName} — подача заявки
+matches               — список лайкнутых питомцев
+account               — личный кабинет
+edit_profile          — редактирование профиля
+applications          — мои заявки
+shelter               — кабинет приюта
+admin/addPet          — добавление питомца
+admin/editPet/{petId} — редактирование питомца
+admin/applications/{petId}/{petName} — заявки на питомца
+admin/application/detail/{applicationId}/... — детальная заявка
 ```
 
 ## 📌 Правила разработки
@@ -355,12 +399,12 @@ val petId = backStackEntry.arguments?.getString("petId")
 6. Иконки: использовать `Icons.Default.*` или `Icons.AutoMirrored.*` из Material Icons Extended
 
 ### Тестирование
-```bash
+```powershell
 # Unit тесты
-./gradlew test
+.\gradlew test
 
 # Интеграционные тесты
-./gradlew connectedAndroidTest
+.\gradlew connectedAndroidTest
 ```
 - Unit тесты: `src/test/`
 - Интеграционные тесты: `src/androidTest/`
@@ -372,7 +416,7 @@ val petId = backStackEntry.arguments?.getString("petId")
 - **Провайдер**: reg.ru Cloud Object Storage
 - **Бакет**: `pet-photos`
 - **Доступ**: Path-style URL (`https://s3.regru.cloud/pet-photos/{key}`)
-- **Авторизация**: AWS SigV4 подпись запросов
+- **Авторизация**: AWS SigV4 подпись запросов (через `S3SigV4Signer.kt`)
 
 ### Настройка S3
 1. Создайте бакет `pet-photos` в reg.ru Cloud
@@ -386,11 +430,16 @@ val petId = backStackEntry.arguments?.getString("petId")
    S3_ENDPOINT_URL=https://s3.regru.cloud
    ```
 
+### Известные проблемы и решения
+- **Ошибка 403 Forbidden** — проверьте права Access Key и политику бакета
+- **Ошибка RequestTimeTooSkewed** — время на устройстве должно быть синхронизировано (используется UTC)
+- **Дублирование фото на UI** — `selectedImages` очищается после загрузки
+
 ## 🤖 GigaChat интеграция
 
 Для оценки рисков при подаче заявок используется **GigaChat** от Сбера:
 
-- **Интеграция**: Ktor Client + yandex-cloud SDK
+- **Интеграция**: Ktor Client 2.3.10 + yandex-cloud SDK
 - **Функция**: Анализ ответов на опросник и формирование оценки рисков
 - **Результат**: `RiskAssessmentRecord` с рекомендациями для приюта
 
@@ -415,13 +464,18 @@ cp .env.example .env
 
 ### S3 и GigaChat
 - Ключи больше не вшиты в код
-- Загружаются из `.env` через Gradle
+- Загружаются из `.env` через Gradle (BuildConfigField)
 - Для production рекомендуется backend-прокси
 
 ### ProGuard/R8
-- Настроен для release-сборок
-- Правила в `proguard-rules.pro`
-- Минификация включена (`isMinifyEnabled = true`)
+- Настроен для release-сборок (`isMinifyEnabled = true`)
+- Правила в `proguard-rules.pro`:
+  - Hilt (DI)
+  - Supabase (Postgrest, Gotrue, Storage)
+  - Ktor (HTTP клиент)
+  - AWS SDK (S3)
+  - kotlinx.serialization
+  - Jetpack Compose
 
 ### Дополнительные материалы
 - [SECURITY.md](SECURITY.md) — общие принципы безопасности
@@ -436,23 +490,28 @@ cp .env.example .env
 - [x] Исправление сохранения фото и тегов при редактировании (shelter_id)
 - [x] GigaChat оценка рисков
 - [x] Админ-панель для приютов
-- [x] Кабинет приюта (ShelterScreen) со статистикой и управлением
+- [x] Кабинет приюта (ShelterScreen) со статистикой, управлением и автообновлением
 - [x] Экран совпадений (MatchesScreen) со списком лайкнутых питомцев
 - [x] Экран завершения опросника (QuestionnaireCompleteScreen)
 - [x] Улучшенный опросник с Material 3 UI
   - Выпадающие списки (ExposedDropdownMenuBox)
   - Чекбоксы для множественного выбора
   - Анимации переходов и прогресс-бар
-  - Пошаговая навигация по разделам (6 секций, 37 вопросов)
+  - Пошаговая навигация по разделам (7 секций, 40+ вопросов)
 - [x] Навигация с аутентификацией через Supabase Auth
 - [x] Роли пользователей (user/admin/shelter) через `role` колонку в `users`
 - [x] RLS политики для редактирования питомцев (приюты + админы)
 - [x] Управление заявками:
-  - Список заявок на питомца (PetApplicationsScreen) со статистикой
+  - Список заявок на питомца (PetApplicationsScreen) со статистикой и фильтр-чипами
+  - Быстрые кнопки «Принять/Отклонить» в карточках заявок
   - Детальный экран заявки (PetApplicationDetailScreen) с полной информацией
-  - Отображение оценки рисков (GigaChat) на детальном экране
-  - Кнопки "Подтвердить"/"Отклонить" с диалогами подтверждения
+  - Детальная оценка рисков GigaChat (градиентная шапка, прогресс-бар, секции факторов)
+  - Кнопки «Подтвердить/Отклонить» с диалогами подтверждения в BottomBar
   - Автоматический перевод pending → processing при открытии списка
+- [x] Добавлены колонки в `pets`: `size`, `breed`, `color`, `weight`, `traits`
+- [x] Добавлен раздел 7 опросника: «Желаемые виды животных»
+- [x] Автообновление ShelterScreen при возврате с экрана добавления/редактирования (LifecycleEventObserver)
+- [x] Современный UI заявок: аватары с инициалами, цветовые акценты статусов, `animateItem`
 
 ### В планах
 - [ ] Push-уведомления (Firebase Cloud Messaging)
@@ -466,11 +525,10 @@ cp .env.example .env
 ## 🐛 Известные проблемы
 
 1. **Loading-экран** — нет таймаута, может зависнуть при проблемах с Supabase
-2. **Placeholder изображений** — используется заглушка при пустом `imageUrl`
+2. **Placeholder изображений** — используется заглушка при пустом `photo_url`
 3. **Нет CI/CD** — отсутствует GitHub Actions для автоматических тестов
 4. **Тесты** — только boilerplate код, нет покрытых тестов бизнес-логики
-5. **Колонка `size` в `pets`** — добавлена через миграцию `add_size_column.sql`, проверьте актуальность схемы
-6. **Устаревшие иконки** — `ArrowBack`, `TrendingUp` помечены как deprecated, нужно использовать `AutoMirrored` версии
+5. **Устаревшие иконки** — некоторые иконки помечены как deprecated, нужно использовать `AutoMirrored` версии
 
 > ✅ **Исправлено:**
 > - ProGuard теперь настроен для release-сборок
@@ -479,6 +537,7 @@ cp .env.example .env
 > - RLS политики для редактирования питомцев (поддержка ролей user/admin)
 > - Загрузка оценки рисков для правильного пользователя (заявителя)
 > - Добавлен статус `processing` в заявки
+> - Добавлен раздел 7 опросника
 
 ## 📞 Контакты
 
@@ -487,4 +546,4 @@ cp .env.example .env
 ---
 
 *Файл актуализирован 28 мая 2026 г.*
-*Обновлено: добавлена безопасность, ProGuard, .env конфигурация, исправление редактирования питомцев, RLS политики, управление заявками с оценкой рисков*
+*Обновлено: редизайн экранов заявок (PetApplicationsScreen + PetApplicationDetailScreen), детальная оценка рисков, автообновление ShelterScreen, актуализирована цветовая палитра и список UI-компонентов*
