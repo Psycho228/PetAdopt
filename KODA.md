@@ -13,6 +13,8 @@
 - **Админ-панель** — управление питомцами (добавление, редактирование) для приютов
 - **Кабинет приюта** — статистика, управление питомцами, просмотр заявок
 - **Управление заявками** — просмотр списка заявок на питомца, детальный экран с опросником и оценкой рисков, подтверждение/отклонение заявок
+- **Чат** — обмен сообщениями между пользователем и приютом в контексте заявки (Android + Web)
+- **Веб-панель приюта** — React + Vite + TailwindCSS приложение для управления питомцами и заявками
 - **Supabase** — аутентификация, PostgreSQL база данных и Storage
 - **S3 (reg.ru Cloud)** — загрузка фотографий питомцев с SigV4 подписью
 - **GigaChat** — оценка рисков при подаче заявок
@@ -50,6 +52,7 @@ app/src/main/java/com/example/petadopt/
 ├── data/
 │   ├── model/              # Модели данных
 │   │   ├── Application.kt
+│   │   ├── ChatMessage.kt
 │   │   ├── GigaChatRiskAssessment.kt
 │   │   ├── Pet.kt
 │   │   ├── QuestionnaireAnswer.kt
@@ -59,6 +62,7 @@ app/src/main/java/com/example/petadopt/
 │   └── repository/         # Репозитории
 │       ├── AdminRepository.kt
 │       ├── AuthRepository.kt
+│       ├── ChatRepository.kt
 │       ├── GigaChatRepository.kt
 │       ├── PetRepository.kt
 │       ├── QuestionnaireRepository.kt
@@ -96,9 +100,11 @@ app/src/main/java/com/example/petadopt/
 │   │   ├── AccountScreen.kt
 │   │   ├── AddEditPetScreen.kt
 │   │   ├── AdminScreen.kt
+│   │   ├── ApplicationDetailWithChatScreen.kt
 │   │   ├── ApplicationScreen.kt
 │   │   ├── ApplicationsScreen.kt
 │   │   ├── AuthScreen.kt
+│   │   ├── ChatScreen.kt
 │   │   ├── DetailsScreen.kt
 │   │   ├── EditProfileScreen.kt
 │   │   ├── MatchesScreen.kt
@@ -118,9 +124,11 @@ app/src/main/java/com/example/petadopt/
 ├── viewmodel/              # ViewModels для каждого экрана
 │   ├── AccountViewModel.kt
 │   ├── AdminViewModel.kt
+│   ├── ApplicationDetailViewModel.kt
 │   ├── ApplicationsViewModel.kt
 │   ├── ApplicationViewModel.kt
 │   ├── AuthViewModel.kt
+│   ├── ChatViewModel.kt
 │   ├── NavViewModel.kt
 │   ├── QuestionnaireState.kt
 │   ├── QuestionnaireViewModel.kt
@@ -184,10 +192,11 @@ app/src/main/java/com/example/petadopt/
 |---------|----------|---------|
 | `users` | Профили пользователей | `id`, `email`, `name`, `role`, `phone`, `created_at` |
 | `pets` | Данные питомцев | `id`, `shelter_id`, `name`, `age`, `type`, `gender`, `size`, `breed`, `color`, `weight`, `description`, `photo_url`, `additional_photos`, `traits`, `is_neutered`, `has_vaccination`, `is_active`, `created_at`, `updated_at` |
-| `applications` | Заявки на пристройство | `id`, `user_id`, `user_name`, `user_email`, `pet_id`, `pet_name`, `message`, `contact_time`, `status`, `created_at`, `updated_at` |
+| `applications` | Заявки на пристройство | `id`, `user_id`, `user_name`, `user_email`, `pet_id`, `pet_name`, `message`, `contact_time`, `contact_days`, `status`, `created_at`, `updated_at` |
 | `questionnaire_answers` | Ответы на опросник | `id`, `user_id`, все поля опросника (q1_*, q2_*, ...), `created_at`, `updated_at` |
 | `likes` | Лайки пользователей | `id`, `user_id`, `pet_id`, `created_at` |
 | `risk_assessments` | Оценки рисков от GigaChat | `id`, `user_id`, `application_id`, `assessment_data`, `created_at` |
+| `chat_messages` | Сообщения чата | `id`, `application_id`, `sender_id`, `sender_role`, `message`, `is_read`, `status`, `created_at` |
 
 ### Роли пользователей
 - `user` — обычный пользователь (ищет питомца)
@@ -206,6 +215,7 @@ app/src/main/java/com/example/petadopt/
 - `questionnaire_answers`: чтение/запись только владельцу
 - `likes`: чтение/запись только владельцу
 - `risk_assessments`: чтение только для приюта, запись для системы
+- `chat_messages`: чтение/запись только участникам заявки (пользователь или приют)
 
 ## 📝 Опросник (7 разделов, 40+ вопросов)
 
@@ -380,6 +390,8 @@ admin/addPet          — добавление питомца
 admin/editPet/{petId} — редактирование питомца
 admin/applications/{petId}/{petName} — заявки на питомца
 admin/application/detail/{applicationId}/... — детальная заявка
+application_chat/{applicationId} — детали заявки + чат (пользователь)
+chat/{applicationId} — экран чата (только чат)
 ```
 
 ## 📌 Правила разработки
@@ -512,10 +524,23 @@ cp .env.example .env
 - [x] Добавлен раздел 7 опросника: «Желаемые виды животных»
 - [x] Автообновление ShelterScreen при возврате с экрана добавления/редактирования (LifecycleEventObserver)
 - [x] Современный UI заявок: аватары с инициалами, цветовые акценты статусов, `animateItem`
+- [x] **Чат** между пользователем и приютом в контексте заявки:
+  - Таблица `chat_messages` с RLS политиками и автоматической установкой роли (триггер)
+  - `ChatScreen` — Material 3 UI с адаптивными пузырьками, аватарами, форматированием времени
+  - `ChatViewModel` + `ChatRepository` — загрузка и отправка сообщений
+  - `ApplicationDetailWithChatScreen` — комбинированный экран заявки + чат для пользователя
+  - Интеграция чата в `ApplicationsScreen` (иконка чата в карточке заявки)
+  - Интеграция чата в `PetApplicationDetailScreen` (кнопка "Чат" в BottomBar для приюта)
+  - Колонки `contact_days` в `applications` и `status` в `chat_messages`
+- [x] **Веб-панель приюта** (`web-panel/`) — React + TypeScript + Vite + TailwindCSS:
+  - Дашборд со статистикой и графиком заявок
+  - Управление питомцами (CRUD, фильтры, поиск)
+  - Просмотр заявок с детальной анкетой и оценкой рисков
+  - Компонент чата (`Chat.tsx`) с real-time обновлениями через Supabase Realtime
 
 ### В планах
 - [ ] Push-уведомления (Firebase Cloud Messaging)
-- [ ] Чат между приютом и пользователем
+- [ ] Real-time подписка в Android (Supabase Realtime для чата)
 - [ ] Фильтрация питомцев (вид, возраст, пол)
 - [ ] Firebase Analytics
 - [ ] Офлайн-режим (Room DB + WorkManager)
@@ -545,5 +570,5 @@ cp .env.example .env
 
 ---
 
-*Файл актуализирован 28 мая 2026 г.*
-*Обновлено: редизайн экранов заявок (PetApplicationsScreen + PetApplicationDetailScreen), детальная оценка рисков, автообновление ShelterScreen, актуализирована цветовая палитра и список UI-компонентов*
+*Файл актуализирован 29 мая 2026 г.*
+*Обновлено: добавлен чат между пользователем и приютом, веб-панель приюта (React + Vite), новые модели и экраны (ChatMessage, ChatScreen, ChatViewModel, ChatRepository, ApplicationDetailWithChatScreen), обновлены структуры БД и навигация*
