@@ -171,18 +171,7 @@ fun PetApplicationsScreen(
                         ApplicationCard(
                             application = app,
                             onCardClick = {
-                                val detailRoute = buildString {
-                                    append("admin/application/detail/${app.id}")
-                                    append("/${app.user_id}")
-                                    append("/${app.user_name}")
-                                    append("/${app.user_email}")
-                                    append("/${app.pet_id}")
-                                    append("/${app.pet_name}")
-                                    append("/${app.message}")
-                                    append("/${app.contact_time}")
-                                    append("/${app.status}")
-                                }
-                                navController.navigate(detailRoute)
+                                navController.navigate("admin/application/detail/${app.id}")
                             },
                             onApprove = {
                                 viewModel.updateApplicationStatus(app.id, "approved")

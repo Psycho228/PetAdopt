@@ -52,6 +52,15 @@ class GetAppliedPetIdsUseCase @Inject constructor(
 }
 
 @Singleton
+class GetApplicationByIdUseCase @Inject constructor(
+    private val repository: PetRepository
+) {
+    suspend operator fun invoke(applicationId: String): Application? {
+        return repository.getApplicationById(applicationId)
+    }
+}
+
+@Singleton
 class LikePetUseCase @Inject constructor(
     private val repository: PetRepository
 ) {

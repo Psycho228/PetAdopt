@@ -221,6 +221,19 @@ class SupabasePetRepository @Inject constructor(
         }
     }
 
+    override suspend fun getApplicationById(applicationId: String): Application? {
+        return try {
+            postgrest.from(TABLE_APPLICATIONS)
+                .select {
+                    filter { eq("id", applicationId) }
+                }
+                .decodeSingleOrNull<Application>()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting application by ID: ${e.message}")
+            null
+        }
+    }
+
     override suspend fun getPendingApplications(petId: String): List<Application> {
         return try {
             val result = postgrest.from(TABLE_APPLICATIONS)

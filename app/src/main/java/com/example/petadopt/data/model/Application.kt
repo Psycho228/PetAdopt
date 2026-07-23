@@ -12,7 +12,8 @@ data class Application(
     @SerialName("pet_id") val pet_id: String = "",
     @SerialName("pet_name") val pet_name: String = "",
     @SerialName("message") val message: String = "",
-    @SerialName("contact_time") val contact_time: String = "",
+    @SerialName("contact_time") val contact_time: String? = null,
+    @SerialName("contact_days") val contact_days: String? = null,
     @SerialName("status") val status: String = "pending",
     @SerialName("created_at") val created_at: String? = null,
     @SerialName("updated_at") val updated_at: String? = null
@@ -23,7 +24,8 @@ data class Application(
     val userEmail: String get() = user_email
     val petId: String get() = pet_id
     val petName: String get() = pet_name
-    val contactTime: String get() = contact_time
+    val contactTime: String get() = contact_time ?: "Не указано"
+    val contactDays: String get() = contact_days ?: "Не указано"
     val timestamp: Long get() = runCatching {
         // Пробуем parse как ISO строку (от Supabase), иначе как Unix timestamp
         java.time.Instant.parse(created_at).toEpochMilli()

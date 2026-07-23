@@ -2,6 +2,7 @@ package com.example.petadopt.di
 
 import com.example.petadopt.data.repository.AdminRepository
 import com.example.petadopt.data.repository.AuthRepository
+import com.example.petadopt.data.repository.ChatRepository
 import com.example.petadopt.data.repository.GigaChatRepository
 import com.example.petadopt.data.repository.PetRepository
 import com.example.petadopt.data.repository.QuestionnaireRepository
@@ -67,6 +68,14 @@ object RepositoryModule {
     @Singleton
     fun provideGigaChatRepository(): GigaChatRepository {
         return GigaChatRepository()
+    }
+
+    @Provides
+    @Singleton
+    fun provideChatRepository(
+        authRepository: AuthRepository
+    ): ChatRepository {
+        return ChatRepository(authRepository)
     }
 }
 
@@ -149,6 +158,11 @@ object UseCaseModule {
     @Provides
     fun provideGetAppliedPetIdsUseCase(repository: PetRepository): GetAppliedPetIdsUseCase {
         return GetAppliedPetIdsUseCase(repository)
+    }
+
+    @Provides
+    fun provideGetApplicationByIdUseCase(repository: PetRepository): GetApplicationByIdUseCase {
+        return GetApplicationByIdUseCase(repository)
     }
 
     @Provides

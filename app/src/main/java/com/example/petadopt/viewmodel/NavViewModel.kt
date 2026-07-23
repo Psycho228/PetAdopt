@@ -18,6 +18,7 @@ private const val TAG = "NavViewModel"
 
 enum class StartDestination {
     LOADING,
+    AUTH,
     QUESTIONNAIRE,
     SWIPE,
     SHELTER
@@ -43,6 +44,7 @@ class NavViewModel @Inject constructor(
                     
                     if (user == null || userId == null) {
                         Log.d(TAG, "User not logged in. Attempt $attempt")
+                        _startDestination.update { StartDestination.AUTH }
                         return@launch
                     }
                     

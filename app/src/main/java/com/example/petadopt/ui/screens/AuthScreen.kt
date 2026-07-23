@@ -31,7 +31,7 @@ fun AuthScreen(
         Spacer(Modifier.weight(1f))
 
         Text(
-            text = if (isRegister) "Создать аккаунт" else "Добро пожаловать",
+            text = if (isRegister) "Создать аккаунт в Хвостиках" else "Добро пожаловать в Хвостики",
             style = MaterialTheme.typography.headlineMedium
         )
 

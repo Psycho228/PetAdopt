@@ -23,6 +23,7 @@ interface PetRepository {
     suspend fun submitApplication(application: Application)
     suspend fun getUserApplications(userId: String): List<Application>
     suspend fun getAppliedPetIds(userId: String): Set<String>
+    suspend fun getApplicationById(applicationId: String): Application?
     suspend fun getPendingApplications(petId: String): List<Application>
     suspend fun getApplicationsForPet(petId: String): List<Application>
     suspend fun autoAcceptApplication(applicationId: String): String?

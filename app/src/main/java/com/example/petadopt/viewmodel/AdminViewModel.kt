@@ -35,6 +35,7 @@ data class AdminUiState(
     val isShelterAdmin: Boolean = false,
     val isAdminRole: Boolean = false,
     val applicationsByPet: Map<String, List<Application>> = emptyMap(),
+    val currentApplication: Application? = null,
     val currentQuestionnaire: QuestionnaireAnswer? = null,
     val currentRiskAssessment: RiskAssessmentRecord? = null
 )
@@ -53,6 +54,7 @@ class AdminViewModel @Inject constructor(
     private val getPetsByShelterUseCase: GetPetsByShelterUseCase,
     private val getUserUseCase: GetUserUseCase,
     private val searchPetsUseCase: SearchPetsUseCase,
+    private val getApplicationByIdUseCase: GetApplicationByIdUseCase,
     private val getApplicationsForPetUseCase: GetApplicationsForPetUseCase,
     private val autoAcceptApplicationUseCase: AutoAcceptApplicationUseCase,
     private val questionnaireRepository: QuestionnaireRepository,
@@ -351,6 +353,35 @@ class AdminViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("AdminViewModel", "Error loading questionnaire for user $userId: ${e.message}")
+            }
+        }
+    }
+
+    fun loadApplicationById(applicationId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isLoading = true,
+                error = null,
+                currentApplication = null,
+                currentQuestionnaire = null,
+                currentRiskAssessment = null
+            )
+            try {
+                val application = getApplicationByIdUseCase(applicationId)
+                _uiState.value = _uiState.value.copy(
+                    currentApplication = application,
+                    isLoading = false
+                )
+                if (application != null) {
+                    loadQuestionnaireForUser(application.user_id)
+                } else {
+                    _uiState.value = _uiState.value.copy(error = "Application not found")
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = e.message,
+                    isLoading = false
+                )
             }
         }
     }

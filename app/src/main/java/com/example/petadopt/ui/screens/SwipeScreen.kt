@@ -3,20 +3,51 @@ package com.example.petadopt.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.outlined.ExitToApp
 import androidx.compose.material.icons.outlined.FavoriteBorder
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Pets
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.petadopt.ui.components.PetCard
@@ -24,9 +55,12 @@ import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.components.SwipeCard
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
+import com.example.petadopt.ui.theme.Secondary
+import com.example.petadopt.ui.theme.TextPrimary
 import com.example.petadopt.ui.theme.TextSecondary
-import com.example.petadopt.viewmodel.SwipeViewModel
+import com.example.petadopt.ui.theme.WarmSurface
 import com.example.petadopt.viewmodel.AccountViewModel
+import com.example.petadopt.viewmodel.SwipeViewModel
 
 @Composable
 fun SwipeScreen(
@@ -42,11 +76,10 @@ fun SwipeScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     val currentPet = pets.getOrNull(currentIndex)
-    
-    // Объединяем основное фото и дополнительные, фильтруем пустые строки
+    val remaining = (pets.size - currentIndex).coerceAtLeast(0)
     val allImages = remember(currentPet?.imageUrl, currentPet?.images) {
-        listOfNotNull(currentPet?.imageUrl?.takeIf { it.isNotBlank() }) + 
-        currentPet?.images?.filter { it.isNotBlank() }.orEmpty()
+        listOfNotNull(currentPet?.imageUrl?.takeIf { it.isNotBlank() }) +
+            currentPet?.images?.filter { it.isNotBlank() }.orEmpty()
     }
     val displayImage = allImages.firstOrNull() ?: "https://via.placeholder.com/300"
 
@@ -57,8 +90,8 @@ fun SwipeScreen(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("Выход") },
-            text = { Text("Вы уверены, что хотите выйти?") },
+            title = { Text("Выйти из профиля?") },
+            text = { Text("Текущая подборка сохранится, вы сможете вернуться позже.") },
             confirmButton = {
                 TextButton(onClick = {
                     accountViewModel.logout()
@@ -70,7 +103,7 @@ fun SwipeScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Отмена")
+                    Text("Остаться")
                 }
             }
         )
@@ -79,7 +112,11 @@ fun SwipeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(WarmSurface, Background)
+                )
+            )
     ) {
         TopBar(
             onAccount = onAccount,
@@ -87,7 +124,7 @@ fun SwipeScreen(
             onLogout = { showLogoutDialog = true }
         )
 
-        Spacer(Modifier.height(4.dp))
+        MatchHeader(remaining = remaining, total = pets.size)
 
         ProgressCounter(currentIndex = currentIndex, total = pets.size)
 
@@ -97,7 +134,8 @@ fun SwipeScreen(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
         ) {
             if (currentPet != null) {
                 SwipeCard(
@@ -114,52 +152,18 @@ fun SwipeScreen(
                     )
                 }
             } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Outlined.FavoriteBorder,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = TextSecondary.copy(alpha = 0.5f)
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Питомцы закончились",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextSecondary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "Вам понравились все питомцы из этой подборки",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary.copy(alpha = 0.7f)
-                        )
-                        Spacer(Modifier.height(24.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.refreshPets() },
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            Text("Обновить список", fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
+                EmptyPetState(onRefresh = { viewModel.refreshPets() })
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
         if (currentPet != null) {
             BottomActions(
-                onDetails = { petId -> onDetails(petId) },
-                onMatches = onMatches,
-                currentPetId = currentPet.id
+                onDetails = { onDetails(currentPet.id) },
+                onMatches = onMatches
             )
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(14.dp))
     }
 }
 
@@ -169,94 +173,188 @@ private fun TopBar(
     onMatches: () -> Unit,
     onLogout: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Background,
-        shadowElevation = 0.dp
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Хвостики",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = Primary
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(
+                shape = CircleShape,
+                color = Primary,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Pets,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(
+                    text = "Хвостики",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextPrimary
+                )
+                Text(
+                    text = "подборка с заботой",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextSecondary
+                )
+            }
+        }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(onClick = onMatches) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Совпадения",
-                        tint = Color(0xFF888888)
-                    )
-                }
-                IconButton(onClick = onAccount) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Профиль",
-                        tint = Color(0xFF444444)
-                    )
-                }
-                IconButton(onClick = onLogout) {
-                    Icon(
-                        imageVector = Icons.Outlined.ExitToApp,
-                        contentDescription = "Выйти",
-                        tint = Color(0xFF888888)
-                    )
-                }
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            IconButton(onClick = onMatches) {
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = "Избранные питомцы",
+                    tint = Secondary
+                )
+            }
+            IconButton(onClick = onAccount) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Профиль",
+                    tint = Primary
+                )
+            }
+            IconButton(onClick = onLogout) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
+                    contentDescription = "Выйти",
+                    tint = TextSecondary
+                )
             }
         }
     }
 }
 
 @Composable
+private fun MatchHeader(remaining: Int, total: Int) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Text(
+            text = "Кто может стать вашим другом?",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = if (total > 0) {
+                "Еще $remaining анкет питомцев в этой подборке"
+            } else {
+                "Обновите список, чтобы увидеть доступных питомцев"
+            },
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextSecondary
+        )
+    }
+}
+
+@Composable
 private fun ProgressCounter(currentIndex: Int, total: Int) {
-    if (total > 0) {
-        Row(
+    if (total <= 0) return
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val progress by animateFloatAsState(
+            targetValue = ((currentIndex + 1).toFloat() / total).coerceIn(0f, 1f),
+            animationSpec = tween(300),
+            label = "swipe-progress"
+        )
+
+        LinearProgressIndicator(
+            progress = { progress },
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .weight(1f)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp)),
+            color = Primary,
+            trackColor = Color.White.copy(alpha = 0.72f)
+        )
+
+        Text(
+            text = "${currentIndex + 1}/$total",
+            style = MaterialTheme.typography.labelMedium,
+            color = TextSecondary,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun EmptyPetState(onRefresh: () -> Unit) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = Color.White.copy(alpha = 0.86f)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val progress by animateFloatAsState(
-                targetValue = if (total > 0) currentIndex.toFloat() / total else 0f,
-                animationSpec = tween(300)
+            Icon(
+                imageVector = Icons.Outlined.FavoriteBorder,
+                contentDescription = null,
+                modifier = Modifier.size(58.dp),
+                tint = Secondary
             )
-
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
-                color = Primary,
-                trackColor = Color(0xFFE0E0E0)
-            )
-
-            Spacer(Modifier.width(8.dp))
-
+            Spacer(Modifier.height(16.dp))
             Text(
-                text = "Осталось $total",
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary,
-                fontWeight = FontWeight.Medium
+                text = "Подборка закончилась",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
             )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Мы покажем новых питомцев, когда приюты обновят анкеты.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(22.dp))
+            OutlinedButton(
+                onClick = onRefresh,
+                shape = RoundedCornerShape(16.dp),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Refresh,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Обновить")
+            }
         }
     }
 }
 
 @Composable
 private fun BottomActions(
-    onDetails: (String) -> Unit,
-    onMatches: () -> Unit,
-    currentPetId: String
+    onDetails: () -> Unit,
+    onMatches: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -264,8 +362,8 @@ private fun BottomActions(
             .padding(horizontal = 16.dp)
     ) {
         PrimaryButton(
-            text = "Подробнее о питомце",
-            onClick = { onDetails(currentPetId) }
+            text = "Познакомиться ближе",
+            onClick = onDetails
         )
 
         Spacer(Modifier.height(10.dp))
@@ -274,8 +372,8 @@ private fun BottomActions(
             onClick = onMatches,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp),
-            shape = RoundedCornerShape(14.dp),
+                .height(52.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = Primary
             )
@@ -286,7 +384,7 @@ private fun BottomActions(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(Modifier.width(8.dp))
-            Text("Мои совпадения", fontWeight = FontWeight.SemiBold)
+            Text("Мои симпатии", fontWeight = FontWeight.SemiBold)
         }
     }
 }

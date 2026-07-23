@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,7 @@ import com.example.petadopt.viewmodel.ApplicationsViewModel
 @Composable
 fun ApplicationsScreen(
     onBack: () -> Unit,
-    onPetClick: (String) -> Unit,
+    onChatClick: (String) -> Unit,
     viewModel: ApplicationsViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -123,7 +124,8 @@ fun ApplicationsScreen(
                             formattedTime = viewModel.getFormattedTime(application.timestamp),
                             statusText = viewModel.getStatusText(application.status),
                             statusColor = viewModel.getStatusColor(application.status),
-                            onClick = { onPetClick(application.petId) }
+                            onClick = { onChatClick(application.id) },
+                            onChatClick = { onChatClick(application.id) }
                         )
                     }
                 }
@@ -163,7 +165,8 @@ private fun ApplicationCard(
     formattedTime: String,
     statusText: String,
     statusColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onChatClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -209,19 +212,32 @@ private fun ApplicationCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Связь: ${application.contactTime}",
                     color = TextSecondary,
                     fontSize = 12.sp
                 )
-                Text(
-                    text = application.userName,
-                    color = Primary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = application.userName,
+                        color = Primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    // Кнопка чата
+                    IconButton(
+                        onClick = { onChatClick() },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        androidx.compose.material.icons.Icons.Default.Chat
+                    }
+                }
             }
         }
     }

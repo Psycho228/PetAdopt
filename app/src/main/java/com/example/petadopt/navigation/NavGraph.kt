@@ -1,4 +1,4 @@
-package com.example.petadopt.navigation
+﻿package com.example.petadopt.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +24,8 @@ import com.example.petadopt.ui.screens.EditProfileScreen
 import com.example.petadopt.ui.screens.AddEditPetScreen
 import com.example.petadopt.ui.screens.PetApplicationsScreen
 import com.example.petadopt.ui.screens.PetApplicationDetailScreen
+import com.example.petadopt.ui.screens.ChatScreen
+import com.example.petadopt.ui.screens.ApplicationDetailWithChatScreen
 import com.example.petadopt.viewmodel.NavViewModel
 import com.example.petadopt.viewmodel.StartDestination
 import com.example.petadopt.viewmodel.SwipeViewModel
@@ -34,22 +36,7 @@ import com.example.petadopt.viewmodel.QuestionnaireViewModel
 fun NavGraph() {
     val navController = rememberNavController()
 
-    var isLoggedIn by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(true) }
-
-    // Проверяем сессию через StateFlow из AuthRepository
-    // Для простоты используем задержку и предполагаем, что сессия уже инициализирована
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(500)
-        // В реальном приложении здесь будет проверка через AuthRepository.currentUser
-        // Пока просто переходим на auth если нет данных
-        isLoading = false
-        isLoggedIn = false // По умолчанию не авторизован
-    }
-
-    val startDestination = if (isLoading) "loading" else if (isLoggedIn) "swipe" else "auth"
-
-    NavHost(navController, startDestination = startDestination) {
+    NavHost(navController, startDestination = "loading") {
 
         composable("auth") {
             AuthScreen(
@@ -71,6 +58,13 @@ fun NavGraph() {
                 StartDestination.LOADING -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
+                    }
+                }
+                StartDestination.AUTH -> {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("auth") {
+                            popUpTo("loading") { inclusive = true }
+                        }
                     }
                 }
                 StartDestination.QUESTIONNAIRE -> {
@@ -107,8 +101,8 @@ fun NavGraph() {
         composable("questionnaire") {
             QuestionnaireScreen(
                 onFinish = { withRiskAssessment ->
-                    // Всегда переходим на swipe после завершения опросника
-                    // (с оценкой рисков или без - это обрабатывается внутри QuestionnaireScreen)
+                    // Р’СЃРµРіРґР° РїРµСЂРµС…РѕРґРёРј РЅР° swipe РїРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ РѕРїСЂРѕСЃРЅРёРєР°
+                    // (СЃ РѕС†РµРЅРєРѕР№ СЂРёСЃРєРѕРІ РёР»Рё Р±РµР· - СЌС‚Рѕ РѕР±СЂР°Р±Р°С‚С‹РІР°РµС‚СЃСЏ РІРЅСѓС‚СЂРё QuestionnaireScreen)
                     navController.navigate("swipe") {
                         popUpTo("questionnaire") { inclusive = true }
                     }
@@ -174,8 +168,8 @@ fun NavGraph() {
         composable("applications") { backStackEntry ->
             ApplicationsScreen(
                 onBack = { navController.popBackStack() },
-                onPetClick = { petId ->
-                    navController.navigate("details_from_application/$petId")
+                onChatClick = { applicationId ->
+                    navController.navigate("application_chat/$applicationId")
                 }
             )
         }
@@ -191,7 +185,7 @@ fun NavGraph() {
             )
         }
 
-        // Кабинет приюта / Админ-панель
+        // РљР°Р±РёРЅРµС‚ РїСЂРёСЋС‚Р° / РђРґРјРёРЅ-РїР°РЅРµР»СЊ
         composable("shelter") {
             ShelterScreen(navController = navController)
         }
@@ -210,7 +204,7 @@ fun NavGraph() {
             )
         }
 
-        // Просмотр заявок на питомца
+        // РџСЂРѕСЃРјРѕС‚СЂ Р·Р°СЏРІРѕРє РЅР° РїРёС‚РѕРјС†Р°
         composable("admin/applications/{petId}/{petName}") { backStackEntry ->
             val petId = backStackEntry.arguments?.getString("petId") ?: ""
             val petName = backStackEntry.arguments?.getString("petName") ?: ""
@@ -221,32 +215,31 @@ fun NavGraph() {
             )
         }
 
-        // Детальный просмотр заявки
-        composable("admin/application/detail/{applicationId}/{userId}/{userName}/{userEmail}/{petId}/{petName}/{message}/{contactTime}/{status}") { backStackEntry ->
+        // Р”РµС‚Р°Р»СЊРЅС‹Р№ РїСЂРѕСЃРјРѕС‚СЂ Р·Р°СЏРІРєРё
+        composable("admin/application/detail/{applicationId}") { backStackEntry ->
             val applicationId = backStackEntry.arguments?.getString("applicationId") ?: ""
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            val userName = backStackEntry.arguments?.getString("userName") ?: ""
-            val userEmail = backStackEntry.arguments?.getString("userEmail") ?: ""
-            val petId = backStackEntry.arguments?.getString("petId") ?: ""
-            val petName = backStackEntry.arguments?.getString("petName") ?: ""
-            val message = backStackEntry.arguments?.getString("message") ?: ""
-            val contactTime = backStackEntry.arguments?.getString("contactTime") ?: ""
-            val status = backStackEntry.arguments?.getString("status") ?: "pending"
-            
-            val application = com.example.petadopt.data.model.Application(
-                id = applicationId,
-                user_id = userId,
-                user_name = userName,
-                user_email = userEmail,
-                pet_id = petId,
-                pet_name = petName,
-                message = message,
-                contact_time = contactTime,
-                status = status
-            )
             PetApplicationDetailScreen(
                 navController = navController,
-                application = application
+                applicationId = applicationId
+            )
+        }
+
+        // Р­РєСЂР°РЅ С‡Р°С‚Р° РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ (РґРµС‚Р°Р»Рё Р·Р°СЏРІРєРё + С‡Р°С‚)
+        composable("application_chat/{applicationId}") { backStackEntry ->
+            val applicationId = backStackEntry.arguments?.getString("applicationId") ?: ""
+            ApplicationDetailWithChatScreen(
+                navController = navController,
+                applicationId = applicationId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // Р­РєСЂР°РЅ С‡Р°С‚Р° (С‚РѕР»СЊРєРѕ С‡Р°С‚)
+        composable("chat/{applicationId}") { backStackEntry ->
+            val applicationId = backStackEntry.arguments?.getString("applicationId") ?: ""
+            ChatScreen(
+                applicationId = applicationId,
+                onBack = { navController.popBackStack() }
             )
         }
     }

@@ -1,7 +1,6 @@
-refactor: improve GigaChat integration and update AdminScreen
+feat: редизайн экранов заявок и автобновление ShelterScreen
 
-- Updated GigaChatRiskAssessment and RiskAssessmentRecord models
-- Improved risk handling in QuestionnaireViewModel
-- Redesigned RiskAssessmentCard UI with score display
-- Updated AccountScreen and AdminScreen for risk scores
-- Enhanced logic in GigaChatRepository
+- PetApplicationsScreen: статистика, фильтр-чипы, аватары, быстрые кнопки Принять/Отклонить
+- PetApplicationDetailScreen: детальная оценка рисков GigaChat
+- ShelterScreen: автобновление при возврате (LifecycleEventObserver)
+- KODA.md/README.md: актуализированы палитра, UI-компоненты и roadmap

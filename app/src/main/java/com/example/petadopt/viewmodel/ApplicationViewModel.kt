@@ -78,6 +78,7 @@ class ApplicationViewModel @Inject constructor(
     fun submitApplication(
         message: String,
         contactTime: String,
+        contactDays: String,
         onSuccess: () -> Unit
     ) {
         val uid = authRepo.currentUserId ?: run {
@@ -105,6 +106,7 @@ class ApplicationViewModel @Inject constructor(
                     pet_name = _state.value.petName,
                     message = message,
                     contact_time = contactTime,
+                    contact_days = contactDays,
                     status = "pending",
                     created_at = java.time.Instant.now().toString()
                 )

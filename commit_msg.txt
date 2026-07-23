@@ -1,10 +1,10 @@
-feat: реализовать полноценное управление заявками с оценкой рисков
+feat: add chat between user and shelter + shelter web panel
 
-- Добавлены экраны списка заявок (PetApplicationsScreen) и детального просмотра (PetApplicationDetailScreen)
-- Интегрирована оценка рисков (GigaChat) на детальном экране заявки
-- Реализованы кнопки "Подтвердить"/"Отклонить" с диалогами подтверждения
-- Добавлен статус "processing" для заявок в работе
-- Настроена загрузка оценки рисков для правильного пользователя (заявителя)
-- Добавлены SQL-миграции для статуса processing и индексов заявок
-- Обновлены RLS политики для доступа приютов к анкетам заявителей
-- Актуализирована документация (KODA.md, README.md)
+- Implemented chat (ChatScreen, ChatViewModel, ChatRepository)
+- chat_messages table with RLS and auto-role trigger
+- ApplicationDetailWithChatScreen for users
+- Chat integration in ApplicationsScreen and PetApplicationDetailScreen
+- Added columns: contact_days (applications), status (chat_messages)
+- Shelter web panel (React + TypeScript + Vite + TailwindCSS)
+- Updated KODA.md and README.md with new feature documentation
+- SQL migration scripts for database

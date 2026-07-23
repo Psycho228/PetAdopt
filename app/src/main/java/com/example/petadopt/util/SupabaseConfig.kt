@@ -1,5 +1,6 @@
 package com.example.petadopt.util
 
+import com.example.petadopt.BuildConfig
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.Postgrest
@@ -7,10 +8,16 @@ import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.createSupabaseClient
 
 object SupabaseConfig {
-    const val SUPABASE_URL = "http://89.111.143.6:8000"
-    const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE"
+    val SUPABASE_URL: String
+        get() = BuildConfig.SUPABASE_URL
+
+    val SUPABASE_ANON_KEY: String
+        get() = BuildConfig.SUPABASE_ANON_KEY
 
     val supabaseClient: SupabaseClient by lazy {
+        require(SUPABASE_URL.isNotBlank()) { "SUPABASE_URL is missing. Add it to the root .env file." }
+        require(SUPABASE_ANON_KEY.isNotBlank()) { "SUPABASE_ANON_KEY is missing. Add it to the root .env file." }
+
         createSupabaseClient(
             supabaseUrl = SUPABASE_URL,
             supabaseKey = SUPABASE_ANON_KEY

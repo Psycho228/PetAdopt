@@ -1,45 +1,80 @@
-# PetAdopt — Agent Guide
+# PetAdopt - Agent Guide
 
 ## Stack
-- **Kotlin 1.9.24**, AGP 8.13.2, Gradle 8.13, compileSdk 34, minSdk 24
-- **Jetpack Compose** (Material 3), **Navigation Compose**, **Coil** for images
-- **Firebase Auth + Firestore** (BOM 33.1.2) with **kotlinx-coroutines-play-services**
-- **Hilt 2.51.1** (kapt) — `@HiltViewModel`, `@Inject`, `@AndroidEntryPoint`
+- **Kotlin 1.9.24**, Android Gradle Plugin from `gradle/libs.versions.toml`, compileSdk 34, minSdk 24
+- **Jetpack Compose** with Material 3, **Navigation Compose**, **Coil** for images
+- **Supabase** via `supabase-kt`: Auth, PostgREST, Storage
+- **Ktor** with OkHttp for Supabase/GigaChat HTTP clients
+- **AWS SDK for Kotlin** plus custom S3 signing/storage helpers
+- **GigaChat** integration for questionnaire risk assessment
+- **Hilt 2.51.1** with kapt: `@HiltViewModel`, `@Inject`, `@AndroidEntryPoint`
+- Separate **React/Vite/TypeScript** web admin panel under `web-panel/`
 
 ## Build commands
 ```bash
-./gradlew assembleDebug             # full build
-./gradlew :app:assembleDebug        # single module
-./gradlew testDebugUnitTest         # unit tests (only boilerplate exists)
+./gradlew assembleDebug             # full Android build
+./gradlew :app:assembleDebug        # Android app module
+./gradlew testDebugUnitTest         # Android unit tests
+
+cd web-panel
+npm run build                       # web panel build
+npm run dev                         # web panel dev server
 ```
-All versions centralized in `gradle/libs.versions.toml` — use `alias(libs.*)` in build files.
+All Android dependency versions are centralized in `gradle/libs.versions.toml`; use `alias(libs.*)` in Gradle build files.
 
 ## Architecture
-- **Single module** (`:app`), entry point: `MainActivity` → `NavGraph` (string routes)
-- **MVVM**: `data.model.*` → `data.repository.*` → `viewmodel.*` → `ui.screens.*`
-- **DI**: `di/AppModule.kt` provides `FirebaseAuth` + `FirebaseFirestore` singletons
-- **Navigation routes**: `auth`, `loading`, `onboarding`, `questionnaire`, `swipe`, `details`, `application`, `matches`, `account`
+- Android app is a single Gradle module: `:app`
+- Entry point: `PetAdoptApp` + `MainActivity` -> `navigation/NavGraph.kt`
+- Main layers: `data.model.*` -> `data.repository.*` -> `domain.usecase.*` -> `viewmodel.*` -> `ui.screens.*`
+- DI is in `di/RepositoryModule.kt`; `di/AppModule.kt` is currently a placeholder
+- Supabase client is centralized in `util/SupabaseConfig.kt`
+- S3 config/signing helpers live in `util/S3Config.kt` and `util/S3SigV4Signer.kt`
+- Web panel uses Supabase JS from `web-panel/src/lib/supabase.ts`
+- SQL schema/RLS/migration helpers live in root `*.sql` files and `web-panel/*.sql`
 
-## Key patterns (DO NOT deviate)
-- **Repositories**: inject `FirebaseAuth`/`FirebaseFirestore` via constructor, all public methods are `suspend` using `.await()` from `kotlinx.coroutines.tasks`
-- **ViewModels**: `@HiltViewModel`, inject repositories via `@Inject constructor`, use `viewModelScope.launch` + try/catch, expose `StateFlow`
-- **Screens**: receive `hiltViewModel()` as default param, accept callbacks for navigation. Use `Screen { }` wrapper for full-size background column layout, `PrimaryButton` for full-width themed buttons.
-- **Navigation**: add `onAccount: () -> Unit` callback + "Профиль" button on every screen except auth.
+## Main Navigation Routes
+- User flow: `auth`, `loading`, `onboarding`, `questionnaire`, `swipe`, `details/{petId}`, `application/{petId}/{petName}`, `matches`, `account`, `edit_profile`, `applications`
+- Shelter/admin flow: `shelter`, `admin/addPet`, `admin/editPet/{petId}`, `admin/applications/{petId}/{petName}`, `admin/application/detail/{applicationId}`
+- Chat flow: `application_chat/{applicationId}`, `chat/{applicationId}`
 
-## UI patterns
-- `Screen(content: ColumnScope.() -> Unit)` — full-size column with background + 16dp padding
-- `PrimaryButton` — full-width, custom `Primary` color, white text
-- `SwipeCard` — drag-gesture wrapper with spring animation, calls `onSwipedLeft`/`onSwipedRight` at 320px threshold
-- `PetCard` — card with image gradient, like/dislike overlay, tags
+## Key Patterns
+- **Repositories**: expose suspend functions and hide Supabase/S3/GigaChat implementation details behind repository interfaces where interfaces already exist.
+- **ViewModels**: use `@HiltViewModel`, inject use cases/repositories via `@Inject constructor`, launch work in `viewModelScope`, expose UI state with `StateFlow`.
+- **Use cases**: keep app actions under `domain/usecase/`; prefer existing use-case wrappers when wiring ViewModels.
+- **Screens**: Compose screens receive `hiltViewModel()` as a default parameter and navigation callbacks from `NavGraph`.
+- **UI wrappers**: use existing `Screen { }`, `PrimaryButton`, `SwipeCard`, `PetCard`, and risk/chat components instead of introducing parallel styles.
+- **Navigation**: pass stable IDs through routes and load data from repositories/ViewModels. Do not pass long free-text fields directly in the path.
 
-## Known quirks
-- `ui/state/MatchState.kt` is an externalized state holder (non-standard), not used in main flow
-- Loading screen has no timeout — infinite spinner if Firebase hangs
-- Pet placeholder URL: `"https://via.placeholder.com/300"` when `imageUrl` is empty
-- `proguard-rules.pro` exists but is empty — R8 not configured
-- `UserProfile` in `data.repository` package is legacy (questionnaire uses `QuestionnaireAnswer` in `data.model`)
-- No GitHub Actions CI, no README
+## UI Patterns
+- `Screen(content: ColumnScope.() -> Unit)` provides the common full-size background column with padding.
+- `PrimaryButton` is the themed full-width primary action.
+- `SwipeCard` wraps drag gestures and triggers left/right swipes at the configured threshold.
+- `PetCard` renders pet imagery, gradient overlay, actions, and tags.
+- Keep Russian user-facing labels consistent with existing screens.
+
+## Configuration And Secrets
+- `.env` is loaded by `app/build.gradle.kts` into `BuildConfig` for S3, GigaChat, and Supabase fields.
+- Do not add real secrets to source files.
+- Prefer `BuildConfig` config values over hardcoded URLs/keys.
+- Treat `app/google-services.json`, `.env`, Supabase anon keys, S3 keys, and GigaChat credentials as sensitive.
+
+## Known Quirks / Risks
+- The project previously used Firebase-oriented docs, but the current code is Supabase-based.
+- `SupabaseConfig.kt` reads Supabase URL/key from `BuildConfig`; keep real values in `.env`, not source files.
+- `AndroidManifest.xml` currently allows cleartext traffic; avoid expanding HTTP usage.
+- `GigaChatRepository.kt` uses the default OkHttp TLS checks. If custom certificates are needed, add a scoped network security config instead of disabling verification.
+- Some files contain mojibake/broken Russian text from encoding issues.
+- Startup navigation is centralized through `loading` and `NavViewModel`; `NavViewModel` still uses retry delays while waiting for session/profile data.
+- Application detail navigation passes only `applicationId`; keep this pattern for new detail routes.
+- `proguard-rules.pro` is empty while release minification is enabled.
+- Tests are mostly boilerplate.
 
 ## Tests
-- Only boilerplate `ExampleUnitTest` + `ExampleInstrumentedTest`
-- Add unit tests under `src/test/`, instrumented under `src/androidTest/`
+- Existing tests: `app/src/test/.../ExampleUnitTest.kt` and `app/src/androidTest/.../ExampleInstrumentedTest.kt`
+- Add JVM unit tests under `app/src/test/`
+- Add instrumented Android tests under `app/src/androidTest/`
+- For risky repository/use-case changes, add focused tests around mapping, validation, and error handling where practical.
+
+## Working Tree Safety
+- The repo may contain user changes. Check `git status --short` before edits and do not revert unrelated files.
+- Keep changes scoped to the requested area.

@@ -1,4 +1,4 @@
-package com.example.petadopt.data.repository
+﻿package com.example.petadopt.data.repository
 
 import android.util.Log
 import com.example.petadopt.BuildConfig
@@ -20,24 +20,18 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.Json
-import okhttp3.OkHttpClient
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
-import javax.net.ssl.SSLContext
-import javax.net.ssl.TrustManager
-import javax.net.ssl.X509TrustManager
 
-// DTO для ответа OAuth
+// DTO РґР»СЏ РѕС‚РІРµС‚Р° OAuth
 @Serializable
 data class OAuthTokenResponse(
     val access_token: String,
     val expires_at: Long? = null
 )
 
-// DTO для запроса к GigaChat
+// DTO РґР»СЏ Р·Р°РїСЂРѕСЃР° Рє GigaChat
 @Serializable
 data class GigaChatRequest(
     val model: String = "GigaChat-2",
@@ -53,30 +47,13 @@ data class Message(
 )
 
 /**
- * Репозиторий для взаимодействия с GigaChat API
- * Оценивает риски передачи питомца на основе ответов опросника
+ * Р РµРїРѕР·РёС‚РѕСЂРёР№ РґР»СЏ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёСЏ СЃ GigaChat API
+ * РћС†РµРЅРёРІР°РµС‚ СЂРёСЃРєРё РїРµСЂРµРґР°С‡Рё РїРёС‚РѕРјС†Р° РЅР° РѕСЃРЅРѕРІРµ РѕС‚РІРµС‚РѕРІ РѕРїСЂРѕСЃРЅРёРєР°
  */
 @Singleton
 class GigaChatRepository @Inject constructor() {
     
     private val client = HttpClient(OkHttp) {
-        engine {
-            config {
-                // Создаём SSL контекст, который доверяет всем сертификатам (для разработки)
-                val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
-                    override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-                    override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-                    override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
-                })
-                
-                val sslContext = SSLContext.getInstance("TLS")
-                sslContext.init(null, trustAllCerts, SecureRandom())
-                
-                sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
-                
-                hostnameVerifier { _, _ -> true }
-            }
-        }
         install(ContentNegotiation) {
             Json {
                 isLenient = true
@@ -85,7 +62,7 @@ class GigaChatRepository @Inject constructor() {
         }
     }
     
-    // GigaChat API конфигурация
+    // GigaChat API РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ
     private val baseUrl = "https://gigachat.devices.sberbank.ru/api/v1"
     private val authUrl = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
     
@@ -94,57 +71,57 @@ class GigaChatRepository @Inject constructor() {
     }
     
     /**
-     * Получает оценку рисков от GigaChat
-     * @param answer Ответы пользователя на опросник
-     * @return Оценка рисков с ID запроса
+     * РџРѕР»СѓС‡Р°РµС‚ РѕС†РµРЅРєСѓ СЂРёСЃРєРѕРІ РѕС‚ GigaChat
+     * @param answer РћС‚РІРµС‚С‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅР° РѕРїСЂРѕСЃРЅРёРє
+     * @return РћС†РµРЅРєР° СЂРёСЃРєРѕРІ СЃ ID Р·Р°РїСЂРѕСЃР°
      */
     suspend fun assessRisk(answer: QuestionnaireAnswer): Result<Pair<GigaChatRiskAssessment, String>> {
         return try {
-            Log.d(TAG, "=== Начала оценка рисков для пользователя ===")
+            Log.d(TAG, "=== РќР°С‡Р°Р»Р° РѕС†РµРЅРєР° СЂРёСЃРєРѕРІ РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ ===")
             
-            // 1. Получаем JWT токен
-            Log.d(TAG, "1. Получение JWT токена...")
+            // 1. РџРѕР»СѓС‡Р°РµРј JWT С‚РѕРєРµРЅ
+            Log.d(TAG, "1. РџРѕР»СѓС‡РµРЅРёРµ JWT С‚РѕРєРµРЅР°...")
             val jwtToken = getJwtToken()
-            Log.d(TAG, "JWT токен получен: ${jwtToken.take(20)}...")
+            Log.d(TAG, "JWT С‚РѕРєРµРЅ РїРѕР»СѓС‡РµРЅ: ${jwtToken.take(20)}...")
             
-            // 2. Формируем промпт для анализа
-            Log.d(TAG, "2. Формирование промпта...")
+            // 2. Р¤РѕСЂРјРёСЂСѓРµРј РїСЂРѕРјРїС‚ РґР»СЏ Р°РЅР°Р»РёР·Р°
+            Log.d(TAG, "2. Р¤РѕСЂРјРёСЂРѕРІР°РЅРёРµ РїСЂРѕРјРїС‚Р°...")
             val prompt = buildRiskAssessmentPrompt(answer)
-            Log.d(TAG, "Промпт сформирован, длина: ${prompt.length} символов")
+            Log.d(TAG, "РџСЂРѕРјРїС‚ СЃС„РѕСЂРјРёСЂРѕРІР°РЅ, РґР»РёРЅР°: ${prompt.length} СЃРёРјРІРѕР»РѕРІ")
             
-            // 3. Отправляем запрос к GigaChat
-            Log.d(TAG, "3. Отправка запроса к GigaChat API...")
+            // 3. РћС‚РїСЂР°РІР»СЏРµРј Р·Р°РїСЂРѕСЃ Рє GigaChat
+            Log.d(TAG, "3. РћС‚РїСЂР°РІРєР° Р·Р°РїСЂРѕСЃР° Рє GigaChat API...")
             val chatResponse = sendChatRequest(jwtToken, prompt)
-            Log.d(TAG, "Ответ от GigaChat получен, длина: ${chatResponse.length} символов")
+            Log.d(TAG, "РћС‚РІРµС‚ РѕС‚ GigaChat РїРѕР»СѓС‡РµРЅ, РґР»РёРЅР°: ${chatResponse.length} СЃРёРјРІРѕР»РѕРІ")
             
-            // 4. Парсим ответ в структуру оценки рисков
-            Log.d(TAG, "4. Парсинг ответа...")
+            // 4. РџР°СЂСЃРёРј РѕС‚РІРµС‚ РІ СЃС‚СЂСѓРєС‚СѓСЂСѓ РѕС†РµРЅРєРё СЂРёСЃРєРѕРІ
+            Log.d(TAG, "4. РџР°СЂСЃРёРЅРі РѕС‚РІРµС‚Р°...")
             val assessment = parseRiskAssessment(chatResponse)
-            Log.d(TAG, "Ответ распаршен: riskScore=${assessment.riskScore}, recommendation=${assessment.recommendation}")
+            Log.d(TAG, "РћС‚РІРµС‚ СЂР°СЃРїР°СЂС€РµРЅ: riskScore=${assessment.riskScore}, recommendation=${assessment.recommendation}")
             
-            // Генерируем ID запроса для трассировки
+            // Р“РµРЅРµСЂРёСЂСѓРµРј ID Р·Р°РїСЂРѕСЃР° РґР»СЏ С‚СЂР°СЃСЃРёСЂРѕРІРєРё
             val requestId = java.util.UUID.randomUUID().toString()
-            Log.d(TAG, "=== Оценка рисков успешна. requestId=$requestId ===")
+            Log.d(TAG, "=== РћС†РµРЅРєР° СЂРёСЃРєРѕРІ СѓСЃРїРµС€РЅР°. requestId=$requestId ===")
             
             Result.success(Pair(assessment, requestId))
         } catch (e: Exception) {
-            Log.e(TAG, "=== ОШИБКА при оценке рисков: ${e.message} ===", e)
+            Log.e(TAG, "=== РћРЁРР‘РљРђ РїСЂРё РѕС†РµРЅРєРµ СЂРёСЃРєРѕРІ: ${e.message} ===", e)
             e.printStackTrace()
             Result.failure(e)
         }
     }
     
     /**
-     * Получает JWT токен для доступа к GigaChat API
+     * РџРѕР»СѓС‡Р°РµС‚ JWT С‚РѕРєРµРЅ РґР»СЏ РґРѕСЃС‚СѓРїР° Рє GigaChat API
      */
     private suspend fun getJwtToken(): String {
         return try {
-            Log.d(TAG, "GigaChat_AUTH_KEY длина: ${BuildConfig.GIGACHAT_AUTH_KEY.length}")
+            Log.d(TAG, "GigaChat_AUTH_KEY РґР»РёРЅР°: ${BuildConfig.GIGACHAT_AUTH_KEY.length}")
             val authKey = BuildConfig.GIGACHAT_AUTH_KEY
             
-            // Проверяем, не пустой ли ключ
+            // РџСЂРѕРІРµСЂСЏРµРј, РЅРµ РїСѓСЃС‚РѕР№ Р»Рё РєР»СЋС‡
             if (authKey.isEmpty()) {
-                throw IllegalStateException("GIGACHAT_AUTH_KEY пустой! Проверьте .env файл")
+                throw IllegalStateException("GIGACHAT_AUTH_KEY РїСѓСЃС‚РѕР№! РџСЂРѕРІРµСЂСЊС‚Рµ .env С„Р°Р№Р»")
             }
             
             val response = client.post(authUrl) {
@@ -152,213 +129,213 @@ class GigaChatRepository @Inject constructor() {
                 header("Authorization", "Basic $authKey")
                 header("Content-Type", "application/x-www-form-urlencoded")
                 header("Accept", "application/json")
-                header("X-Client-App", "PetAdopt")
+                header("X-Client-App", "Hvostiki")
                 setBody("scope=${BuildConfig.GIGACHAT_SCOPE}")
             }
             
-            Log.d(TAG, "Ответ OAuth: ${response.status}")
+            Log.d(TAG, "РћС‚РІРµС‚ OAuth: ${response.status}")
             val responseBody = response.body<String>()
-            Log.d(TAG, "Тело ответа OAuth: $responseBody")
+            Log.d(TAG, "РўРµР»Рѕ РѕС‚РІРµС‚Р° OAuth: $responseBody")
             
-            // Парсим JSON с использованием DTO
+            // РџР°СЂСЃРёРј JSON СЃ РёСЃРїРѕР»СЊР·РѕРІР°РЅРёРµРј DTO
             val json = Json { ignoreUnknownKeys = true }
             val token = try {
                 val oauthResponse = json.decodeFromString<OAuthTokenResponse>(responseBody)
                 oauthResponse.access_token
             } catch (e: Exception) {
-                Log.e(TAG, "Ошибка парсинга JSON: ${e.message}")
+                Log.e(TAG, "РћС€РёР±РєР° РїР°СЂСЃРёРЅРіР° JSON: ${e.message}")
                 null
             }
             
-            token ?: throw IllegalStateException("Не удалось получить JWT токен. Ответ: $responseBody")
+            token ?: throw IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ JWT С‚РѕРєРµРЅ. РћС‚РІРµС‚: $responseBody")
             
-            Log.d(TAG, "JWT токен успешно получен")
+            Log.d(TAG, "JWT С‚РѕРєРµРЅ СѓСЃРїРµС€РЅРѕ РїРѕР»СѓС‡РµРЅ")
             token
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка аутентификации в GigaChat: ${e.message}", e)
-            throw IllegalStateException("Ошибка аутентификации в GigaChat: ${e.message}", e)
+            Log.e(TAG, "РћС€РёР±РєР° Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ GigaChat: ${e.message}", e)
+            throw IllegalStateException("РћС€РёР±РєР° Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ GigaChat: ${e.message}", e)
         }
     }
     
     /**
-     * Формирует структурированный промпт для анализа рисков
+     * Р¤РѕСЂРјРёСЂСѓРµС‚ СЃС‚СЂСѓРєС‚СѓСЂРёСЂРѕРІР°РЅРЅС‹Р№ РїСЂРѕРјРїС‚ РґР»СЏ Р°РЅР°Р»РёР·Р° СЂРёСЃРєРѕРІ
      */
     private fun buildRiskAssessmentPrompt(answer: QuestionnaireAnswer): String {
         return """
-        Ты — эксперт по пристройству животных из приютов. Проанализируй ответы кандидата 
-        и оцени риски передачи питомца этому человеку.
+        РўС‹ вЂ” СЌРєСЃРїРµСЂС‚ РїРѕ РїСЂРёСЃС‚СЂРѕР№СЃС‚РІСѓ Р¶РёРІРѕС‚РЅС‹С… РёР· РїСЂРёСЋС‚РѕРІ. РџСЂРѕР°РЅР°Р»РёР·РёСЂСѓР№ РѕС‚РІРµС‚С‹ РєР°РЅРґРёРґР°С‚Р° 
+        Рё РѕС†РµРЅРё СЂРёСЃРєРё РїРµСЂРµРґР°С‡Рё РїРёС‚РѕРјС†Р° СЌС‚РѕРјСѓ С‡РµР»РѕРІРµРєСѓ.
 
-        **ДАННЫЕ КАНДИДАТА:**
+        **Р”РђРќРќР«Р• РљРђРќР”РР”РђРўРђ:**
         
-        1. Основная информация (ПРИОРИТЕТ: средний):
-           - Имя: ${answer.q1_full_name}
-           - Возраст: ${answer.q1_age} лет ${if ((answer.q1_age ?: 0) < 18 || (answer.q1_age ?: 99) > 90) "[РИСК: возраст вне оптимального диапазона 18-90]" else ""}
-           - Город: ${answer.q1_city}
-           - Профессия: ${answer.q1_occupation} ${if (answer.q1_occupation?.contains("Сбербанк", ignoreCase = true) == true) "[ПРИОРИТЕТ: проверить график работы]" else ""}
-           - Телефон: ${answer.q1_phone}
+        1. РћСЃРЅРѕРІРЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ (РџР РРћР РРўР•Рў: СЃСЂРµРґРЅРёР№):
+           - РРјСЏ: ${answer.q1_full_name}
+           - Р’РѕР·СЂР°СЃС‚: ${answer.q1_age} Р»РµС‚ ${if ((answer.q1_age ?: 0) < 18 || (answer.q1_age ?: 99) > 90) "[Р РРЎРљ: РІРѕР·СЂР°СЃС‚ РІРЅРµ РѕРїС‚РёРјР°Р»СЊРЅРѕРіРѕ РґРёР°РїР°Р·РѕРЅР° 18-90]" else ""}
+           - Р“РѕСЂРѕРґ: ${answer.q1_city}
+           - РџСЂРѕС„РµСЃСЃРёСЏ: ${answer.q1_occupation} ${if (answer.q1_occupation?.contains("РЎР±РµСЂР±Р°РЅРє", ignoreCase = true) == true) "[РџР РРћР РРўР•Рў: РїСЂРѕРІРµСЂРёС‚СЊ РіСЂР°С„РёРє СЂР°Р±РѕС‚С‹]" else ""}
+           - РўРµР»РµС„РѕРЅ: ${answer.q1_phone}
            - Email: ${answer.q1_email}
 
-        2. Жилищные условия (ПРИОРИТЕТ: ВЫСОКИЙ — критические факторы):
-           - Тип жилья: ${answer.q2_housing_type} ${if (answer.q2_housing_type == "Съёмное жильё") "[РИСК: нестабильность]" else ""}
-           - Животные разрешены: ${if (answer.q2_pets_allowed == true) "Да" else if (answer.q2_pets_allowed == false) "Нет [КРИТИЧЕСКИЙ РИСК: нет разрешения]" else "Не указано"}
-           - Живёт с: ${answer.q2_living_with.joinToString()} ${if (answer.q2_living_with.isEmpty()) "[РИСК: живёт один — нет поддержки]" else ""}
-           - Согласие семьи: ${if (answer.q2_family_consent == true) "Да" else if (answer.q2_family_consent == false) "Нет [КРИТИЧЕСКИЙ РИСК: нет согласия семьи]" else "Не указано"}
-           - Дети: ${if (answer.q2_has_children == true) "Да, возраст: ${answer.q2_children_ages}" else if (answer.q2_has_children == false) "Нет" else "Не указано"}
-           - Другие животные: ${if (answer.q2_has_other_pets == true) "Да, типы: ${answer.q2_other_pets_types.joinToString()}" else if (answer.q2_has_other_pets == false) "Нет" else "Не указано"}
-           - Часов в день питомец один: ${answer.q2_hours_alone}${getHoursAloneRiskHint(answer.q2_hours_alone)}
-           - Кто ухаживает в отсутствие: ${answer.q2_caregiver} ${if (answer.q2_caregiver.isNullOrBlank() || answer.q2_caregiver.length < 3) "[РИСК: не указан уход]" else ""}
+        2. Р–РёР»РёС‰РЅС‹Рµ СѓСЃР»РѕРІРёСЏ (РџР РРћР РРўР•Рў: Р’Р«РЎРћРљРР™ вЂ” РєСЂРёС‚РёС‡РµСЃРєРёРµ С„Р°РєС‚РѕСЂС‹):
+           - РўРёРї Р¶РёР»СЊСЏ: ${answer.q2_housing_type} ${if (answer.q2_housing_type == "РЎСЉС‘РјРЅРѕРµ Р¶РёР»СЊС‘") "[Р РРЎРљ: РЅРµСЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚СЊ]" else ""}
+           - Р–РёРІРѕС‚РЅС‹Рµ СЂР°Р·СЂРµС€РµРЅС‹: ${if (answer.q2_pets_allowed == true) "Р”Р°" else if (answer.q2_pets_allowed == false) "РќРµС‚ [РљР РРўРР§Р•РЎРљРР™ Р РРЎРљ: РЅРµС‚ СЂР°Р·СЂРµС€РµРЅРёСЏ]" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - Р–РёРІС‘С‚ СЃ: ${answer.q2_living_with.joinToString()} ${if (answer.q2_living_with.isEmpty()) "[Р РРЎРљ: Р¶РёРІС‘С‚ РѕРґРёРЅ вЂ” РЅРµС‚ РїРѕРґРґРµСЂР¶РєРё]" else ""}
+           - РЎРѕРіР»Р°СЃРёРµ СЃРµРјСЊРё: ${if (answer.q2_family_consent == true) "Р”Р°" else if (answer.q2_family_consent == false) "РќРµС‚ [РљР РРўРР§Р•РЎРљРР™ Р РРЎРљ: РЅРµС‚ СЃРѕРіР»Р°СЃРёСЏ СЃРµРјСЊРё]" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - Р”РµС‚Рё: ${if (answer.q2_has_children == true) "Р”Р°, РІРѕР·СЂР°СЃС‚: ${answer.q2_children_ages}" else if (answer.q2_has_children == false) "РќРµС‚" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - Р”СЂСѓРіРёРµ Р¶РёРІРѕС‚РЅС‹Рµ: ${if (answer.q2_has_other_pets == true) "Р”Р°, С‚РёРїС‹: ${answer.q2_other_pets_types.joinToString()}" else if (answer.q2_has_other_pets == false) "РќРµС‚" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - Р§Р°СЃРѕРІ РІ РґРµРЅСЊ РїРёС‚РѕРјРµС† РѕРґРёРЅ: ${answer.q2_hours_alone}${getHoursAloneRiskHint(answer.q2_hours_alone)}
+           - РљС‚Рѕ СѓС…Р°Р¶РёРІР°РµС‚ РІ РѕС‚СЃСѓС‚СЃС‚РІРёРµ: ${answer.q2_caregiver} ${if (answer.q2_caregiver.isNullOrBlank() || answer.q2_caregiver.length < 3) "[Р РРЎРљ: РЅРµ СѓРєР°Р·Р°РЅ СѓС…РѕРґ]" else ""}
 
-        3. Опыт с животными (ПРИОРИТЕТ: ВЫСОКИЙ):
-           - Были ли питомцы раньше: ${if (answer.q3_had_pets_before == true) "Да" else if (answer.q3_had_pets_before == false) "Нет [РИСК: нет опыта]" else "Не указано"}
-           - Что с ними сейчас: ${answer.q3_what_happened} ${if (answer.q3_what_happened.isNotEmpty() && (answer.q3_what_happened.contains("выбросил", ignoreCase = true) || answer.q3_what_happened.contains("отдал", ignoreCase = true))) "[КРИТИЧЕСКИЙ РИСК: негативная история]" else ""}
-           - Опыт с собаками: ${if (answer.q3_dog_experience == true) "Да" else if (answer.q3_dog_experience == false) "Нет" else "Не указано"}
-           - Опыт с кошками: ${if (answer.q3_cat_experience == true) "Да" else if (answer.q3_cat_experience == false) "Нет" else "Не указано"}
-           - Опыт с особенными животными: ${if (answer.q3_special_needs_experience == true) "Да" else if (answer.q3_special_needs_experience == false) "Нет" else "Не указано"}
-           - Почему сейчас: ${answer.q3_why_now}
+        3. РћРїС‹С‚ СЃ Р¶РёРІРѕС‚РЅС‹РјРё (РџР РРћР РРўР•Рў: Р’Р«РЎРћРљРР™):
+           - Р‘С‹Р»Рё Р»Рё РїРёС‚РѕРјС†С‹ СЂР°РЅСЊС€Рµ: ${if (answer.q3_had_pets_before == true) "Р”Р°" else if (answer.q3_had_pets_before == false) "РќРµС‚ [Р РРЎРљ: РЅРµС‚ РѕРїС‹С‚Р°]" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - Р§С‚Рѕ СЃ РЅРёРјРё СЃРµР№С‡Р°СЃ: ${answer.q3_what_happened} ${if (answer.q3_what_happened.isNotEmpty() && (answer.q3_what_happened.contains("РІС‹Р±СЂРѕСЃРёР»", ignoreCase = true) || answer.q3_what_happened.contains("РѕС‚РґР°Р»", ignoreCase = true))) "[РљР РРўРР§Р•РЎРљРР™ Р РРЎРљ: РЅРµРіР°С‚РёРІРЅР°СЏ РёСЃС‚РѕСЂРёСЏ]" else ""}
+           - РћРїС‹С‚ СЃ СЃРѕР±Р°РєР°РјРё: ${if (answer.q3_dog_experience == true) "Р”Р°" else if (answer.q3_dog_experience == false) "РќРµС‚" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - РћРїС‹С‚ СЃ РєРѕС€РєР°РјРё: ${if (answer.q3_cat_experience == true) "Р”Р°" else if (answer.q3_cat_experience == false) "РќРµС‚" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - РћРїС‹С‚ СЃ РѕСЃРѕР±РµРЅРЅС‹РјРё Р¶РёРІРѕС‚РЅС‹РјРё: ${if (answer.q3_special_needs_experience == true) "Р”Р°" else if (answer.q3_special_needs_experience == false) "РќРµС‚" else "РќРµ СѓРєР°Р·Р°РЅРѕ"}
+           - РџРѕС‡РµРјСѓ СЃРµР№С‡Р°СЃ: ${answer.q3_why_now}
 
-        4. Ответственность и готовность (ПРИОРИТЕТ: ВЫСОКИЙ):
-           - Понимает требования: ${if (answer.q4_understand_requirements) "Да" else "Нет [КРИТИЧЕСКИЙ РИСК: не понимает ответственность]"}
-           - Готов ко времени: ${if (answer.q4_understand_time) "Да" else "Нет"}
-           - Готов к вниманию: ${if (answer.q4_understand_attention) "Да" else "Нет"}
-           - Готов к обучению: ${if (answer.q4_understand_training) "Да" else "Нет"}
-           - Готов к ветпомощи: ${if (answer.q4_understand_vet_care) "Да" else "Нет"}
-           - Потребности: ${answer.understandsNeeds.joinToString()} ${if (answer.understandsNeeds.isEmpty()) "[РИСК: не понимает потребностей]" else ""}
-           - План при порче мебели: ${answer.q4_furniture_damage_plan} ${if (answer.q4_furniture_damage_plan.isNullOrBlank() || answer.q4_furniture_damage_plan.length < 5) "[РИСК: нет плана]" else ""}
-           - План при шуме: ${answer.q4_noise_plan} ${if (answer.q4_noise_plan.isNullOrBlank() || answer.q4_noise_plan.length < 5) "[РИСК: нет плана]" else ""}
-           - План при пугливости: ${answer.q4_shy_pet_plan} ${if (answer.q4_shy_pet_plan.isNullOrBlank() || answer.q4_shy_pet_plan.length < 5) "[РИСК: нет плана]" else ""}
-           - План при долгой адаптации: ${answer.q4_long_adaptation_plan} ${if (answer.q4_long_adaptation_plan.isNullOrBlank() || answer.q4_long_adaptation_plan.length < 5) "[РИСК: нет плана]" else ""}
-           - Готов к воспитанию: ${if (answer.q4_ready_education) "Да" else "Нет [РИСК: не готов к воспитанию]"}
-           - Жизненные изменения: ${answer.q4_life_changes_plan}
-           - Препятствия: ${answer.q4_obstacles_next_year}
+        4. РћС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚СЊ Рё РіРѕС‚РѕРІРЅРѕСЃС‚СЊ (РџР РРћР РРўР•Рў: Р’Р«РЎРћРљРР™):
+           - РџРѕРЅРёРјР°РµС‚ С‚СЂРµР±РѕРІР°РЅРёСЏ: ${if (answer.q4_understand_requirements) "Р”Р°" else "РќРµС‚ [РљР РРўРР§Р•РЎРљРР™ Р РРЎРљ: РЅРµ РїРѕРЅРёРјР°РµС‚ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚СЊ]"}
+           - Р“РѕС‚РѕРІ РєРѕ РІСЂРµРјРµРЅРё: ${if (answer.q4_understand_time) "Р”Р°" else "РќРµС‚"}
+           - Р“РѕС‚РѕРІ Рє РІРЅРёРјР°РЅРёСЋ: ${if (answer.q4_understand_attention) "Р”Р°" else "РќРµС‚"}
+           - Р“РѕС‚РѕРІ Рє РѕР±СѓС‡РµРЅРёСЋ: ${if (answer.q4_understand_training) "Р”Р°" else "РќРµС‚"}
+           - Р“РѕС‚РѕРІ Рє РІРµС‚РїРѕРјРѕС‰Рё: ${if (answer.q4_understand_vet_care) "Р”Р°" else "РќРµС‚"}
+           - РџРѕС‚СЂРµР±РЅРѕСЃС‚Рё: ${answer.understandsNeeds.joinToString()} ${if (answer.understandsNeeds.isEmpty()) "[Р РРЎРљ: РЅРµ РїРѕРЅРёРјР°РµС‚ РїРѕС‚СЂРµР±РЅРѕСЃС‚РµР№]" else ""}
+           - РџР»Р°РЅ РїСЂРё РїРѕСЂС‡Рµ РјРµР±РµР»Рё: ${answer.q4_furniture_damage_plan} ${if (answer.q4_furniture_damage_plan.isNullOrBlank() || answer.q4_furniture_damage_plan.length < 5) "[Р РРЎРљ: РЅРµС‚ РїР»Р°РЅР°]" else ""}
+           - РџР»Р°РЅ РїСЂРё С€СѓРјРµ: ${answer.q4_noise_plan} ${if (answer.q4_noise_plan.isNullOrBlank() || answer.q4_noise_plan.length < 5) "[Р РРЎРљ: РЅРµС‚ РїР»Р°РЅР°]" else ""}
+           - РџР»Р°РЅ РїСЂРё РїСѓРіР»РёРІРѕСЃС‚Рё: ${answer.q4_shy_pet_plan} ${if (answer.q4_shy_pet_plan.isNullOrBlank() || answer.q4_shy_pet_plan.length < 5) "[Р РРЎРљ: РЅРµС‚ РїР»Р°РЅР°]" else ""}
+           - РџР»Р°РЅ РїСЂРё РґРѕР»РіРѕР№ Р°РґР°РїС‚Р°С†РёРё: ${answer.q4_long_adaptation_plan} ${if (answer.q4_long_adaptation_plan.isNullOrBlank() || answer.q4_long_adaptation_plan.length < 5) "[Р РРЎРљ: РЅРµС‚ РїР»Р°РЅР°]" else ""}
+           - Р“РѕС‚РѕРІ Рє РІРѕСЃРїРёС‚Р°РЅРёСЋ: ${if (answer.q4_ready_education) "Р”Р°" else "РќРµС‚ [Р РРЎРљ: РЅРµ РіРѕС‚РѕРІ Рє РІРѕСЃРїРёС‚Р°РЅРёСЋ]"}
+           - Р–РёР·РЅРµРЅРЅС‹Рµ РёР·РјРµРЅРµРЅРёСЏ: ${answer.q4_life_changes_plan}
+           - РџСЂРµРїСЏС‚СЃС‚РІРёСЏ: ${answer.q4_obstacles_next_year}
 
-        5. Безопасность (ПРИОРИТЕТ: ВЫСОКИЙ):
-           - Меры безопасности: ${answer.q5_safety_measures.ifEmpty { listOf("—") }.joinToString()} ${if (answer.q5_safety_measures.isEmpty()) "[РИСК: нет мер безопасности]" else ""}
-           - Готов к стерилизации: ${if (answer.q5_ready_neuter) "Да" else "Нет [РИСК: не готов к стерилизации]"}
-           - Готов к рекомендациям: ${if (answer.q5_ready_recommendations) "Да" else "Нет [РИСК: не готов следовать рекомендациям]"}
-           - Готов к адреснику: ${if (answer.q5_ready_tracker) "Да" else "Нет"}
-           - Готов поддерживать связь: ${if (answer.q5_ready_keep_contact) "Да" else "Нет [РИСК: не готов к обратной связи]"}
+        5. Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ (РџР РРћР РРўР•Рў: Р’Р«РЎРћРљРР™):
+           - РњРµСЂС‹ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё: ${answer.q5_safety_measures.ifEmpty { listOf("вЂ”") }.joinToString()} ${if (answer.q5_safety_measures.isEmpty()) "[Р РРЎРљ: РЅРµС‚ РјРµСЂ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё]" else ""}
+           - Р“РѕС‚РѕРІ Рє СЃС‚РµСЂРёР»РёР·Р°С†РёРё: ${if (answer.q5_ready_neuter) "Р”Р°" else "РќРµС‚ [Р РРЎРљ: РЅРµ РіРѕС‚РѕРІ Рє СЃС‚РµСЂРёР»РёР·Р°С†РёРё]"}
+           - Р“РѕС‚РѕРІ Рє СЂРµРєРѕРјРµРЅРґР°С†РёСЏРј: ${if (answer.q5_ready_recommendations) "Р”Р°" else "РќРµС‚ [Р РРЎРљ: РЅРµ РіРѕС‚РѕРІ СЃР»РµРґРѕРІР°С‚СЊ СЂРµРєРѕРјРµРЅРґР°С†РёСЏРј]"}
+           - Р“РѕС‚РѕРІ Рє Р°РґСЂРµСЃРЅРёРєСѓ: ${if (answer.q5_ready_tracker) "Р”Р°" else "РќРµС‚"}
+           - Р“РѕС‚РѕРІ РїРѕРґРґРµСЂР¶РёРІР°С‚СЊ СЃРІСЏР·СЊ: ${if (answer.q5_ready_keep_contact) "Р”Р°" else "РќРµС‚ [Р РРЎРљ: РЅРµ РіРѕС‚РѕРІ Рє РѕР±СЂР°С‚РЅРѕР№ СЃРІСЏР·Рё]"}
 
-        6. Эмоциональная часть (ПРИОРИТЕТ: средний — качественные ответы):
-           - Что значит ответственный хозяин: ${answer.q6_responsible_owner_meaning}
-           - Видение жизни с питомцем: ${answer.q6_life_with_pet_vision}
-           - Почему хороший хозяин: ${answer.q6_why_good_owner}
+        6. Р­РјРѕС†РёРѕРЅР°Р»СЊРЅР°СЏ С‡Р°СЃС‚СЊ (РџР РРћР РРўР•Рў: СЃСЂРµРґРЅРёР№ вЂ” РєР°С‡РµСЃС‚РІРµРЅРЅС‹Рµ РѕС‚РІРµС‚С‹):
+           - Р§С‚Рѕ Р·РЅР°С‡РёС‚ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№ С…РѕР·СЏРёРЅ: ${answer.q6_responsible_owner_meaning}
+           - Р’РёРґРµРЅРёРµ Р¶РёР·РЅРё СЃ РїРёС‚РѕРјС†РµРј: ${answer.q6_life_with_pet_vision}
+           - РџРѕС‡РµРјСѓ С…РѕСЂРѕС€РёР№ С…РѕР·СЏРёРЅ: ${answer.q6_why_good_owner}
 
-        7. Желаемые виды животных (ПРИОРИТЕТ: низкий — для рекомендации):
-           - Какие питомцы желаемы: ${answer.q7_desired_pets.joinToString { it.ifEmpty { "не указано" } }}
+        7. Р–РµР»Р°РµРјС‹Рµ РІРёРґС‹ Р¶РёРІРѕС‚РЅС‹С… (РџР РРћР РРўР•Рў: РЅРёР·РєРёР№ вЂ” РґР»СЏ СЂРµРєРѕРјРµРЅРґР°С†РёРё):
+           - РљР°РєРёРµ РїРёС‚РѕРјС†С‹ Р¶РµР»Р°РµРјС‹: ${answer.q7_desired_pets.joinToString { it.ifEmpty { "РЅРµ СѓРєР°Р·Р°РЅРѕ" } }}
 
-        **ПРАВИЛА ОЦЕНКИ РИСКОВ:**
+        **РџР РђР’РР›Рђ РћР¦Р•РќРљР Р РРЎРљРћР’:**
         
-        1. **Время питомца в одиночестве (КРИТИЧЕСКИ ВАЖНО):**
-           - 0-4 часов в день — ОТЛИЧНО (снижает риск на 15-20 баллов)
-           - 5-6 часов в день — ХОРОШО (снижает риск на 5-10 баллов)
-           - 7-8 часов в день — ДОПУСТИМО (без изменения)
-           - 9-10 часов в день — ПОВЫШЕННЫЙ РИСК (+10-15 баллов к риску)
-           - 11+ часов в день — ВЫСОКИЙ РИСК (+20-30 баллов к риску, питомец будет страдать)
-           - Чем МЕНЬШЕ времени питомец проводит один, тем ЛУЧШЕ для его психики и здоровья
+        1. **Р’СЂРµРјСЏ РїРёС‚РѕРјС†Р° РІ РѕРґРёРЅРѕС‡РµСЃС‚РІРµ (РљР РРўРР§Р•РЎРљР Р’РђР–РќРћ):**
+           - 0-4 С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” РћРўР›РР§РќРћ (СЃРЅРёР¶Р°РµС‚ СЂРёСЃРє РЅР° 15-20 Р±Р°Р»Р»РѕРІ)
+           - 5-6 С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” РҐРћР РћРЁРћ (СЃРЅРёР¶Р°РµС‚ СЂРёСЃРє РЅР° 5-10 Р±Р°Р»Р»РѕРІ)
+           - 7-8 С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” Р”РћРџРЈРЎРўРРњРћ (Р±РµР· РёР·РјРµРЅРµРЅРёСЏ)
+           - 9-10 С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” РџРћР’Р«РЁР•РќРќР«Р™ Р РРЎРљ (+10-15 Р±Р°Р»Р»РѕРІ Рє СЂРёСЃРєСѓ)
+           - 11+ С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” Р’Р«РЎРћРљРР™ Р РРЎРљ (+20-30 Р±Р°Р»Р»РѕРІ Рє СЂРёСЃРєСѓ, РїРёС‚РѕРјРµС† Р±СѓРґРµС‚ СЃС‚СЂР°РґР°С‚СЊ)
+           - Р§РµРј РњР•РќР¬РЁР• РІСЂРµРјРµРЅРё РїРёС‚РѕРјРµС† РїСЂРѕРІРѕРґРёС‚ РѕРґРёРЅ, С‚РµРј Р›РЈР§РЁР• РґР»СЏ РµРіРѕ РїСЃРёС…РёРєРё Рё Р·РґРѕСЂРѕРІСЊСЏ
 
-        2. **Приоритеты обработки полей (от высокого к низкому):**
+        2. **РџСЂРёРѕСЂРёС‚РµС‚С‹ РѕР±СЂР°Р±РѕС‚РєРё РїРѕР»РµР№ (РѕС‚ РІС‹СЃРѕРєРѕРіРѕ Рє РЅРёР·РєРѕРјСѓ):**
            
-           ПРИОРИТЕТ ВЫСОКИЙ (критические факторы):
-           - q2_pets_allowed: без разрешения на животных — автоматический REJECT
-           - q2_family_consent: без согласия семьи — высокий риск
-           - q2_hours_alone: >8 часов — высокий риск (см. правило выше)
-           - q4_understand_requirements: непонимание ответственности — высокий риск
-           - q5_safety_measures: отсутствие мер безопасности — средний/высокий риск
-           - q5_ready_neuter: отказ от стерилизации — высокий риск
-           - q3_had_pets_before: отсутствие опыта — средний риск
-           - q3_what_happened: негативная история (выбросил/отдал) — критический риск
+           РџР РРћР РРўР•Рў Р’Р«РЎРћРљРР™ (РєСЂРёС‚РёС‡РµСЃРєРёРµ С„Р°РєС‚РѕСЂС‹):
+           - q2_pets_allowed: Р±РµР· СЂР°Р·СЂРµС€РµРЅРёСЏ РЅР° Р¶РёРІРѕС‚РЅС‹С… вЂ” Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРёР№ REJECT
+           - q2_family_consent: Р±РµР· СЃРѕРіР»Р°СЃРёСЏ СЃРµРјСЊРё вЂ” РІС‹СЃРѕРєРёР№ СЂРёСЃРє
+           - q2_hours_alone: >8 С‡Р°СЃРѕРІ вЂ” РІС‹СЃРѕРєРёР№ СЂРёСЃРє (СЃРј. РїСЂР°РІРёР»Рѕ РІС‹С€Рµ)
+           - q4_understand_requirements: РЅРµРїРѕРЅРёРјР°РЅРёРµ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚Рё вЂ” РІС‹СЃРѕРєРёР№ СЂРёСЃРє
+           - q5_safety_measures: РѕС‚СЃСѓС‚СЃС‚РІРёРµ РјРµСЂ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё вЂ” СЃСЂРµРґРЅРёР№/РІС‹СЃРѕРєРёР№ СЂРёСЃРє
+           - q5_ready_neuter: РѕС‚РєР°Р· РѕС‚ СЃС‚РµСЂРёР»РёР·Р°С†РёРё вЂ” РІС‹СЃРѕРєРёР№ СЂРёСЃРє
+           - q3_had_pets_before: РѕС‚СЃСѓС‚СЃС‚РІРёРµ РѕРїС‹С‚Р° вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
+           - q3_what_happened: РЅРµРіР°С‚РёРІРЅР°СЏ РёСЃС‚РѕСЂРёСЏ (РІС‹Р±СЂРѕСЃРёР»/РѕС‚РґР°Р») вЂ” РєСЂРёС‚РёС‡РµСЃРєРёР№ СЂРёСЃРє
            
-           ПРИОРИТЕТ СРЕДНИЙ:
-           - q2_housing_type: съёмное жильё — небольшой риск нестабильности
-           - q2_caregiver: отсутствие плана ухода — средний риск
-           - q4_*_plan: отсутствие планов для сложных ситуаций — средний риск
-           - q4_ready_education: неготовность к воспитанию — средний риск
-           - q5_ready_keep_contact: неготовность к обратной связи — средний риск
-           - q1_age: возраст <18 или >90 — небольшой риск
+           РџР РРћР РРўР•Рў РЎР Р•Р”РќРР™:
+           - q2_housing_type: СЃСЉС‘РјРЅРѕРµ Р¶РёР»СЊС‘ вЂ” РЅРµР±РѕР»СЊС€РѕР№ СЂРёСЃРє РЅРµСЃС‚Р°Р±РёР»СЊРЅРѕСЃС‚Рё
+           - q2_caregiver: РѕС‚СЃСѓС‚СЃС‚РІРёРµ РїР»Р°РЅР° СѓС…РѕРґР° вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
+           - q4_*_plan: РѕС‚СЃСѓС‚СЃС‚РІРёРµ РїР»Р°РЅРѕРІ РґР»СЏ СЃР»РѕР¶РЅС‹С… СЃРёС‚СѓР°С†РёР№ вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
+           - q4_ready_education: РЅРµРіРѕС‚РѕРІРЅРѕСЃС‚СЊ Рє РІРѕСЃРїРёС‚Р°РЅРёСЋ вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
+           - q5_ready_keep_contact: РЅРµРіРѕС‚РѕРІРЅРѕСЃС‚СЊ Рє РѕР±СЂР°С‚РЅРѕР№ СЃРІСЏР·Рё вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
+           - q1_age: РІРѕР·СЂР°СЃС‚ <18 РёР»Рё >90 вЂ” РЅРµР±РѕР»СЊС€РѕР№ СЂРёСЃРє
            
-           ПРИОРИТЕТ НИЗКИЙ:
-           - q6_*: эмоциональные ответы — для qualitative оценки
-           - q7_desired_pets: для рекомендации подходящих питомцев
+           РџР РРћР РРўР•Рў РќРР—РљРР™:
+           - q6_*: СЌРјРѕС†РёРѕРЅР°Р»СЊРЅС‹Рµ РѕС‚РІРµС‚С‹ вЂ” РґР»СЏ qualitative РѕС†РµРЅРєРё
+           - q7_desired_pets: РґР»СЏ СЂРµРєРѕРјРµРЅРґР°С†РёРё РїРѕРґС…РѕРґСЏС‰РёС… РїРёС‚РѕРјС†РµРІ
 
-        3. **Занятость кандидата:**
-           - Если кандидат указывает профессию в крупной организации (Сбербанк и др.) — проверить на ненормированный день
-           - Если кандидат живёт один (q2_living_with пустой) — нет поддержки в уходе
+        3. **Р—Р°РЅСЏС‚РѕСЃС‚СЊ РєР°РЅРґРёРґР°С‚Р°:**
+           - Р•СЃР»Рё РєР°РЅРґРёРґР°С‚ СѓРєР°Р·С‹РІР°РµС‚ РїСЂРѕС„РµСЃСЃРёСЋ РІ РєСЂСѓРїРЅРѕР№ РѕСЂРіР°РЅРёР·Р°С†РёРё (РЎР±РµСЂР±Р°РЅРє Рё РґСЂ.) вЂ” РїСЂРѕРІРµСЂРёС‚СЊ РЅР° РЅРµРЅРѕСЂРјРёСЂРѕРІР°РЅРЅС‹Р№ РґРµРЅСЊ
+           - Р•СЃР»Рё РєР°РЅРґРёРґР°С‚ Р¶РёРІС‘С‚ РѕРґРёРЅ (q2_living_with РїСѓСЃС‚РѕР№) вЂ” РЅРµС‚ РїРѕРґРґРµСЂР¶РєРё РІ СѓС…РѕРґРµ
 
-        4. **Опыт с животными:**
-           - Отсутствие опыта (q3_had_pets_before = "Нет") — средний риск, но не критичный
-           - Негативная история (выбросил, отдал, умерли по вине) — КРИТИЧЕСКИЙ РИСК
-           - Отсутствие опыта с конкретным видом (собака/кошка) при желании взять его — средний риск
+        4. **РћРїС‹С‚ СЃ Р¶РёРІРѕС‚РЅС‹РјРё:**
+           - РћС‚СЃСѓС‚СЃС‚РІРёРµ РѕРїС‹С‚Р° (q3_had_pets_before = "РќРµС‚") вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє, РЅРѕ РЅРµ РєСЂРёС‚РёС‡РЅС‹Р№
+           - РќРµРіР°С‚РёРІРЅР°СЏ РёСЃС‚РѕСЂРёСЏ (РІС‹Р±СЂРѕСЃРёР», РѕС‚РґР°Р», СѓРјРµСЂР»Рё РїРѕ РІРёРЅРµ) вЂ” РљР РРўРР§Р•РЎРљРР™ Р РРЎРљ
+           - РћС‚СЃСѓС‚СЃС‚РІРёРµ РѕРїС‹С‚Р° СЃ РєРѕРЅРєСЂРµС‚РЅС‹Рј РІРёРґРѕРј (СЃРѕР±Р°РєР°/РєРѕС€РєР°) РїСЂРё Р¶РµР»Р°РЅРёРё РІР·СЏС‚СЊ РµРіРѕ вЂ” СЃСЂРµРґРЅРёР№ СЂРёСЃРє
 
-        **ЗАДАЧА:**
-        Оцени риски по шкале от 0 до 100 и верни ответ ТОЛЬКО в формате JSON:
+        **Р—РђР”РђР§Рђ:**
+        РћС†РµРЅРё СЂРёСЃРєРё РїРѕ С€РєР°Р»Рµ РѕС‚ 0 РґРѕ 100 Рё РІРµСЂРЅРё РѕС‚РІРµС‚ РўРћР›Р¬РљРћ РІ С„РѕСЂРјР°С‚Рµ JSON:
 
         {
             "overallRisk": "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH",
-            "riskScore": число от 0 до 100,
+            "riskScore": С‡РёСЃР»Рѕ РѕС‚ 0 РґРѕ 100,
             "riskFactors": [
-                {"category": "категория", "severity": "LOW" | "MEDIUM" | "HIGH", "description": "описание", "suggestion": "предложение"}
+                {"category": "РєР°С‚РµРіРѕСЂРёСЏ", "severity": "LOW" | "MEDIUM" | "HIGH", "description": "РѕРїРёСЃР°РЅРёРµ", "suggestion": "РїСЂРµРґР»РѕР¶РµРЅРёРµ"}
             ],
-            "positiveFactors": ["положительный фактор 1", "положительный фактор 2"],
-            "recommendations": ["рекомендация 1", "рекомендация 2"],
-            "detailedAnalysis": "развёрнутый анализ на русском языке",
+            "positiveFactors": ["РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Р№ С„Р°РєС‚РѕСЂ 1", "РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Р№ С„Р°РєС‚РѕСЂ 2"],
+            "recommendations": ["СЂРµРєРѕРјРµРЅРґР°С†РёСЏ 1", "СЂРµРєРѕРјРµРЅРґР°С†РёСЏ 2"],
+            "detailedAnalysis": "СЂР°Р·РІС‘СЂРЅСѓС‚С‹Р№ Р°РЅР°Р»РёР· РЅР° СЂСѓСЃСЃРєРѕРј СЏР·С‹РєРµ",
             "recommendation": "APPROVE" | "APPROVE_WITH_CONDITIONS" | "REVIEW_REQUIRED" | "REJECT"
         }
 
-        Критерии оценки:
-        - LOW (0-25): Отличные условия, большой опыт, полная готовность, питомец не будет долго один
-        - MEDIUM (26-50): Хорошие условия, есть небольшие риски (например, 7-8 часов один)
-        - HIGH (51-75): Значительные риски (9-10 часов один, нет опыта, съёмное жильё)
-        - VERY_HIGH (76-100): Критические риски (11+ часов один, нет разрешения, негативная история)
+        РљСЂРёС‚РµСЂРёРё РѕС†РµРЅРєРё:
+        - LOW (0-25): РћС‚Р»РёС‡РЅС‹Рµ СѓСЃР»РѕРІРёСЏ, Р±РѕР»СЊС€РѕР№ РѕРїС‹С‚, РїРѕР»РЅР°СЏ РіРѕС‚РѕРІРЅРѕСЃС‚СЊ, РїРёС‚РѕРјРµС† РЅРµ Р±СѓРґРµС‚ РґРѕР»РіРѕ РѕРґРёРЅ
+        - MEDIUM (26-50): РҐРѕСЂРѕС€РёРµ СѓСЃР»РѕРІРёСЏ, РµСЃС‚СЊ РЅРµР±РѕР»СЊС€РёРµ СЂРёСЃРєРё (РЅР°РїСЂРёРјРµСЂ, 7-8 С‡Р°СЃРѕРІ РѕРґРёРЅ)
+        - HIGH (51-75): Р—РЅР°С‡РёС‚РµР»СЊРЅС‹Рµ СЂРёСЃРєРё (9-10 С‡Р°СЃРѕРІ РѕРґРёРЅ, РЅРµС‚ РѕРїС‹С‚Р°, СЃСЉС‘РјРЅРѕРµ Р¶РёР»СЊС‘)
+        - VERY_HIGH (76-100): РљСЂРёС‚РёС‡РµСЃРєРёРµ СЂРёСЃРєРё (11+ С‡Р°СЃРѕРІ РѕРґРёРЅ, РЅРµС‚ СЂР°Р·СЂРµС€РµРЅРёСЏ, РЅРµРіР°С‚РёРІРЅР°СЏ РёСЃС‚РѕСЂРёСЏ)
 
-        **Факторы риска (с учётом времени в одиночестве):**
-        - Нет согласия семьи
-        - Нет разрешения на животных в жилье
-        - 9+ часов в день один (чем больше, тем хуже)
-        - Нет опыта с животными
-        - Не понимает ответственность
-        - Нет мер безопасности
-        - Непредсказуемые жизненные обстоятельства
-        - Высокая занятость на работе (9+ часов)
-        - Негативная история с предыдущими питомцами
+        **Р¤Р°РєС‚РѕСЂС‹ СЂРёСЃРєР° (СЃ СѓС‡С‘С‚РѕРј РІСЂРµРјРµРЅРё РІ РѕРґРёРЅРѕС‡РµСЃС‚РІРµ):**
+        - РќРµС‚ СЃРѕРіР»Р°СЃРёСЏ СЃРµРјСЊРё
+        - РќРµС‚ СЂР°Р·СЂРµС€РµРЅРёСЏ РЅР° Р¶РёРІРѕС‚РЅС‹С… РІ Р¶РёР»СЊРµ
+        - 9+ С‡Р°СЃРѕРІ РІ РґРµРЅСЊ РѕРґРёРЅ (С‡РµРј Р±РѕР»СЊС€Рµ, С‚РµРј С…СѓР¶Рµ)
+        - РќРµС‚ РѕРїС‹С‚Р° СЃ Р¶РёРІРѕС‚РЅС‹РјРё
+        - РќРµ РїРѕРЅРёРјР°РµС‚ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚СЊ
+        - РќРµС‚ РјРµСЂ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё
+        - РќРµРїСЂРµРґСЃРєР°Р·СѓРµРјС‹Рµ Р¶РёР·РЅРµРЅРЅС‹Рµ РѕР±СЃС‚РѕСЏС‚РµР»СЊСЃС‚РІР°
+        - Р’С‹СЃРѕРєР°СЏ Р·Р°РЅСЏС‚РѕСЃС‚СЊ РЅР° СЂР°Р±РѕС‚Рµ (9+ С‡Р°СЃРѕРІ)
+        - РќРµРіР°С‚РёРІРЅР°СЏ РёСЃС‚РѕСЂРёСЏ СЃ РїСЂРµРґС‹РґСѓС‰РёРјРё РїРёС‚РѕРјС†Р°РјРё
         
-        **Положительные факторы:**
-        - Опыт с животными (особенно положительный)
-        - Готовность к расходам и ветпомощи
-        - Меры безопасности установлены
-        - Понимание ответственности
-        - Поддержка семьи
-        - 0-6 часов в день один (идеально для питомца)
-        - Гибкий график работы или возможность брать питомца на работу
-        - Наличие плана на сложные ситуации
+        **РџРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Рµ С„Р°РєС‚РѕСЂС‹:**
+        - РћРїС‹С‚ СЃ Р¶РёРІРѕС‚РЅС‹РјРё (РѕСЃРѕР±РµРЅРЅРѕ РїРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Р№)
+        - Р“РѕС‚РѕРІРЅРѕСЃС‚СЊ Рє СЂР°СЃС…РѕРґР°Рј Рё РІРµС‚РїРѕРјРѕС‰Рё
+        - РњРµСЂС‹ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё СѓСЃС‚Р°РЅРѕРІР»РµРЅС‹
+        - РџРѕРЅРёРјР°РЅРёРµ РѕС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚Рё
+        - РџРѕРґРґРµСЂР¶РєР° СЃРµРјСЊРё
+        - 0-6 С‡Р°СЃРѕРІ РІ РґРµРЅСЊ РѕРґРёРЅ (РёРґРµР°Р»СЊРЅРѕ РґР»СЏ РїРёС‚РѕРјС†Р°)
+        - Р“РёР±РєРёР№ РіСЂР°С„РёРє СЂР°Р±РѕС‚С‹ РёР»Рё РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ Р±СЂР°С‚СЊ РїРёС‚РѕРјС†Р° РЅР° СЂР°Р±РѕС‚Сѓ
+        - РќР°Р»РёС‡РёРµ РїР»Р°РЅР° РЅР° СЃР»РѕР¶РЅС‹Рµ СЃРёС‚СѓР°С†РёРё
         """.trimIndent()
     }
     
     /**
-     * Генерирует подсказку о риске на основе часов в одиночестве
+     * Р“РµРЅРµСЂРёСЂСѓРµС‚ РїРѕРґСЃРєР°Р·РєСѓ Рѕ СЂРёСЃРєРµ РЅР° РѕСЃРЅРѕРІРµ С‡Р°СЃРѕРІ РІ РѕРґРёРЅРѕС‡РµСЃС‚РІРµ
      */
     private fun getHoursAloneRiskHint(hours: Int?): String {
-        if (hours == null) return "[РИСК: не указано]"
+        if (hours == null) return "[Р РРЎРљ: РЅРµ СѓРєР°Р·Р°РЅРѕ]"
         return when {
-            hours <= 4 -> "[ОТЛИЧНО: минимальное время в одиночестве]"
-            hours <= 6 -> "[ХОРОШО: приемлемое время]"
-            hours <= 8 -> "[ДОПУСТИМО: стандартное рабочее время]"
-            hours <= 10 -> "[ПОВЫШЕННЫЙ РИСК: питомец будет проводить много времени один]"
-            else -> "[ВЫСОКИЙ РИСК: 11+ часов в день — питомец будет страдать]"
+            hours <= 4 -> "[РћРўР›РР§РќРћ: РјРёРЅРёРјР°Р»СЊРЅРѕРµ РІСЂРµРјСЏ РІ РѕРґРёРЅРѕС‡РµСЃС‚РІРµ]"
+            hours <= 6 -> "[РҐРћР РћРЁРћ: РїСЂРёРµРјР»РµРјРѕРµ РІСЂРµРјСЏ]"
+            hours <= 8 -> "[Р”РћРџРЈРЎРўРРњРћ: СЃС‚Р°РЅРґР°СЂС‚РЅРѕРµ СЂР°Р±РѕС‡РµРµ РІСЂРµРјСЏ]"
+            hours <= 10 -> "[РџРћР’Р«РЁР•РќРќР«Р™ Р РРЎРљ: РїРёС‚РѕРјРµС† Р±СѓРґРµС‚ РїСЂРѕРІРѕРґРёС‚СЊ РјРЅРѕРіРѕ РІСЂРµРјРµРЅРё РѕРґРёРЅ]"
+            else -> "[Р’Р«РЎРћРљРР™ Р РРЎРљ: 11+ С‡Р°СЃРѕРІ РІ РґРµРЅСЊ вЂ” РїРёС‚РѕРјРµС† Р±СѓРґРµС‚ СЃС‚СЂР°РґР°С‚СЊ]"
         }
     }
     
     /**
-     * Отправляет запрос к GigaChat API
+     * РћС‚РїСЂР°РІР»СЏРµС‚ Р·Р°РїСЂРѕСЃ Рє GigaChat API
      */
     private suspend fun sendChatRequest(jwtToken: String, prompt: String): String {
-        Log.d(TAG, "Отправка запроса к GigaChat API...")
+        Log.d(TAG, "РћС‚РїСЂР°РІРєР° Р·Р°РїСЂРѕСЃР° Рє GigaChat API...")
         
-        // Пытаемся использовать модели по приоритету (от лучшей к базовой)
+        // РџС‹С‚Р°РµРјСЃСЏ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РјРѕРґРµР»Рё РїРѕ РїСЂРёРѕСЂРёС‚РµС‚Сѓ (РѕС‚ Р»СѓС‡С€РµР№ Рє Р±Р°Р·РѕРІРѕР№)
         val modelsToTry = listOf("GigaChat-2", "GigaChat", "GigaChat", "GigaChat")
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {
-            Log.d(TAG, "Попытка с моделью: $model")
+            Log.d(TAG, "РџРѕРїС‹С‚РєР° СЃ РјРѕРґРµР»СЊСЋ: $model")
             
             val bodyString = json.encodeToString(GigaChatRequest.serializer(), GigaChatRequest(
                 model = model,
@@ -375,33 +352,33 @@ class GigaChatRepository @Inject constructor() {
                 setBody(bodyString)
             }
             
-            Log.d(TAG, "Статус ответа для $model: ${response.status}")
+            Log.d(TAG, "РЎС‚Р°С‚СѓСЃ РѕС‚РІРµС‚Р° РґР»СЏ $model: ${response.status}")
             
             if (response.status.value == 200) {
                 val responseBody = response.body<String>()
-                Log.d(TAG, "Успех! Тело ответа, длина: ${responseBody.length} символов")
+                Log.d(TAG, "РЈСЃРїРµС…! РўРµР»Рѕ РѕС‚РІРµС‚Р°, РґР»РёРЅР°: ${responseBody.length} СЃРёРјРІРѕР»РѕРІ")
                 
-                // Парсим ответ вручную
+                // РџР°СЂСЃРёРј РѕС‚РІРµС‚ РІСЂСѓС‡РЅСѓСЋ
                 val element = json.parseToJsonElement(responseBody)
                 val choices = element.jsonObject["choices"]?.jsonArray
                 val message = choices?.firstOrNull()?.jsonObject?.get("message")?.jsonObject
                 val content = message?.get("content")?.jsonPrimitive?.content
                 
                 if (content != null) {
-                    Log.d(TAG, "Контент успешно извлечён из модели $model, длина: ${content.length} символов")
-                    Log.d(TAG, "Первые 300 символов контента: ${content.take(300)}")
+                    Log.d(TAG, "РљРѕРЅС‚РµРЅС‚ СѓСЃРїРµС€РЅРѕ РёР·РІР»РµС‡С‘РЅ РёР· РјРѕРґРµР»Рё $model, РґР»РёРЅР°: ${content.length} СЃРёРјРІРѕР»РѕРІ")
+                    Log.d(TAG, "РџРµСЂРІС‹Рµ 300 СЃРёРјРІРѕР»РѕРІ РєРѕРЅС‚РµРЅС‚Р°: ${content.take(300)}")
                     return content
                 } else {
-                    Log.e(TAG, "Не удалось извлечь content из ответа")
-                    Log.e(TAG, "Полный ответ: $responseBody")
+                    Log.e(TAG, "РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РІР»РµС‡СЊ content РёР· РѕС‚РІРµС‚Р°")
+                    Log.e(TAG, "РџРѕР»РЅС‹Р№ РѕС‚РІРµС‚: $responseBody")
                 }
             } else {
                 val errorBody = response.body<String>()
-                Log.w(TAG, "Модель $model не подошла: ${response.status} - $errorBody")
+                Log.w(TAG, "РњРѕРґРµР»СЊ $model РЅРµ РїРѕРґРѕС€Р»Р°: ${response.status} - $errorBody")
             }
         }
         
-        throw IllegalStateException("Ни одна из моделей не работала. Проверьте доступ к GigaChat API.")
+        throw IllegalStateException("РќРё РѕРґРЅР° РёР· РјРѕРґРµР»РµР№ РЅРµ СЂР°Р±РѕС‚Р°Р»Р°. РџСЂРѕРІРµСЂСЊС‚Рµ РґРѕСЃС‚СѓРї Рє GigaChat API.")
     }
     
     private suspend fun getAvailableModels(jwtToken: String): List<String> {
@@ -413,9 +390,9 @@ class GigaChatRepository @Inject constructor() {
             
             if (response.status.value == 200) {
                 val responseBody = response.body<String>()
-                Log.d(TAG, "Ответ /models: $responseBody")
+                Log.d(TAG, "РћС‚РІРµС‚ /models: $responseBody")
                 
-                // Ручной парсинг JSON через JsonPrimitive
+                // Р СѓС‡РЅРѕР№ РїР°СЂСЃРёРЅРі JSON С‡РµСЂРµР· JsonPrimitive
                 val json = Json { isLenient = true; ignoreUnknownKeys = true }
                 val element = json.parseToJsonElement(responseBody)
                 val data = element.jsonObject["data"]?.jsonArray
@@ -424,65 +401,65 @@ class GigaChatRepository @Inject constructor() {
                     jsonElement.jsonObject["id"]?.jsonPrimitive?.content
                 } ?: emptyList()
             } else {
-                Log.w(TAG, "Не удалось получить список моделей: ${response.status}")
+                Log.w(TAG, "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РјРѕРґРµР»РµР№: ${response.status}")
                 emptyList()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Ошибка при получении списка моделей", e)
+            Log.e(TAG, "РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё СЃРїРёСЃРєР° РјРѕРґРµР»РµР№", e)
             emptyList()
         }
     }
     
     /**
-     * Парсит ответ от GigaChat в структуру оценки рисков
+     * РџР°СЂСЃРёС‚ РѕС‚РІРµС‚ РѕС‚ GigaChat РІ СЃС‚СЂСѓРєС‚СѓСЂСѓ РѕС†РµРЅРєРё СЂРёСЃРєРѕРІ
      */
     private fun parseRiskAssessment(response: String): GigaChatRiskAssessment {
-        Log.d(TAG, "=== Парсинг ответа GigaChat ===")
-        Log.d(TAG, "Длина ответа: ${response.length} символов")
-        Log.d(TAG, "Первые 500 символов: ${response.take(500)}")
+        Log.d(TAG, "=== РџР°СЂСЃРёРЅРі РѕС‚РІРµС‚Р° GigaChat ===")
+        Log.d(TAG, "Р”Р»РёРЅР° РѕС‚РІРµС‚Р°: ${response.length} СЃРёРјРІРѕР»РѕРІ")
+        Log.d(TAG, "РџРµСЂРІС‹Рµ 500 СЃРёРјРІРѕР»РѕРІ: ${response.take(500)}")
         
-        // Извлекаем JSON из ответа (на случай если он обернут в текст)
+        // РР·РІР»РµРєР°РµРј JSON РёР· РѕС‚РІРµС‚Р° (РЅР° СЃР»СѓС‡Р°Р№ РµСЃР»Рё РѕРЅ РѕР±РµСЂРЅСѓС‚ РІ С‚РµРєСЃС‚)
         val jsonStart = response.indexOf('{')
         val jsonEnd = response.lastIndexOf('}')
         
         if (jsonStart == -1 || jsonEnd == -1) {
-            Log.e(TAG, "Не удалось найти JSON в ответе. Начало: $jsonStart, Конец: $jsonEnd")
-            Log.e(TAG, "Полный ответ: $response")
-            throw IllegalStateException("Не удалось найти JSON в ответе: $response")
+            Log.e(TAG, "РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё JSON РІ РѕС‚РІРµС‚Рµ. РќР°С‡Р°Р»Рѕ: $jsonStart, РљРѕРЅРµС†: $jsonEnd")
+            Log.e(TAG, "РџРѕР»РЅС‹Р№ РѕС‚РІРµС‚: $response")
+            throw IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё JSON РІ РѕС‚РІРµС‚Рµ: $response")
         }
         
-        Log.d(TAG, "Найден JSON с позиции $jsonStart по $jsonEnd")
+        Log.d(TAG, "РќР°Р№РґРµРЅ JSON СЃ РїРѕР·РёС†РёРё $jsonStart РїРѕ $jsonEnd")
         var jsonStr = response.substring(jsonStart, jsonEnd + 1)
-        Log.d(TAG, "Длина извлеченного JSON: ${jsonStr.length} символов")
+        Log.d(TAG, "Р”Р»РёРЅР° РёР·РІР»РµС‡РµРЅРЅРѕРіРѕ JSON: ${jsonStr.length} СЃРёРјРІРѕР»РѕРІ")
         
-        // Нормализуем нестандартные значения severity от GigaChat
+        // РќРѕСЂРјР°Р»РёР·СѓРµРј РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ severity РѕС‚ GigaChat
         jsonStr = normalizeSeverityValues(jsonStr)
-        // Нормализуем нестандартные значения recommendation в массиве recommendations
+        // РќРѕСЂРјР°Р»РёР·СѓРµРј РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ recommendation РІ РјР°СЃСЃРёРІРµ recommendations
         jsonStr = normalizeRecommendationValues(jsonStr)
         
         return try {
             val assessment = Json.decodeFromString<GigaChatRiskAssessment>(jsonStr)
-            Log.d(TAG, "✅ Успешный парсинг:")
+            Log.d(TAG, "вњ… РЈСЃРїРµС€РЅС‹Р№ РїР°СЂСЃРёРЅРі:")
             Log.d(TAG, "  overallRisk: ${assessment.overallRisk}")
             Log.d(TAG, "  riskScore: ${assessment.riskScore}")
-            Log.d(TAG, "  riskFactors: ${assessment.riskFactors.size} факторов")
-            Log.d(TAG, "  positiveFactors: ${assessment.positiveFactors.size} факторов")
-            Log.d(TAG, "  recommendations: ${assessment.recommendations.size} рекомендаций")
-            Log.d(TAG, "  detailedAnalysis: ${assessment.detailedAnalysis.length} символов")
+            Log.d(TAG, "  riskFactors: ${assessment.riskFactors.size} С„Р°РєС‚РѕСЂРѕРІ")
+            Log.d(TAG, "  positiveFactors: ${assessment.positiveFactors.size} С„Р°РєС‚РѕСЂРѕРІ")
+            Log.d(TAG, "  recommendations: ${assessment.recommendations.size} СЂРµРєРѕРјРµРЅРґР°С†РёР№")
+            Log.d(TAG, "  detailedAnalysis: ${assessment.detailedAnalysis.length} СЃРёРјРІРѕР»РѕРІ")
             Log.d(TAG, "  recommendation: ${assessment.recommendation}")
             assessment
         } catch (e: Exception) {
-            Log.e(TAG, "❌ Ошибка парсинга JSON: ${e.message}")
-            Log.e(TAG, "JSON строка: $jsonStr")
+            Log.e(TAG, "вќЊ РћС€РёР±РєР° РїР°СЂСЃРёРЅРіР° JSON: ${e.message}")
+            Log.e(TAG, "JSON СЃС‚СЂРѕРєР°: $jsonStr")
             e.printStackTrace()
-            // Если парсинг не удался, создаём базовую оценку
+            // Р•СЃР»Рё РїР°СЂСЃРёРЅРі РЅРµ СѓРґР°Р»СЃСЏ, СЃРѕР·РґР°С‘Рј Р±Р°Р·РѕРІСѓСЋ РѕС†РµРЅРєСѓ
             createFallbackAssessment(response)
         }
     }
     
     /**
-     * Нормализует нестандартные значения severity от GigaChat
-     * GigaChat может возвращать: MED, HI, VERY, CRIT и т.д.
+     * РќРѕСЂРјР°Р»РёР·СѓРµС‚ РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ severity РѕС‚ GigaChat
+     * GigaChat РјРѕР¶РµС‚ РІРѕР·РІСЂР°С‰Р°С‚СЊ: MED, HI, VERY, CRIT Рё С‚.Рґ.
      */
     private fun normalizeSeverityValues(json: String): String {
         val severityMap = mapOf(
@@ -499,22 +476,22 @@ class GigaChatRepository @Inject constructor() {
     }
     
     /**
-     * Нормализует нестандартные значения recommendation в массиве recommendations
-     * GigaChat может возвращать "REJECT" как элемент массива вместо текстовой рекомендации
+     * РќРѕСЂРјР°Р»РёР·СѓРµС‚ РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ recommendation РІ РјР°СЃСЃРёРІРµ recommendations
+     * GigaChat РјРѕР¶РµС‚ РІРѕР·РІСЂР°С‰Р°С‚СЊ "REJECT" РєР°Рє СЌР»РµРјРµРЅС‚ РјР°СЃСЃРёРІР° РІРјРµСЃС‚Рѕ С‚РµРєСЃС‚РѕРІРѕР№ СЂРµРєРѕРјРµРЅРґР°С†РёРё
      */
     private fun normalizeRecommendationValues(json: String): String {
         val recommendationCodes = listOf("REJECT", "APPROVE", "APPROVE_WITH_CONDITIONS", "REVIEW_REQUIRED")
         val recommendationDescriptions = mapOf(
-            "REJECT" to "Рекомендуется отклонить заявку",
-            "APPROVE" to "Рекомендуется одобрить заявку",
-            "APPROVE_WITH_CONDITIONS" to "Одобрить с условиями",
-            "REVIEW_REQUIRED" to "Требуется дополнительная проверка"
+            "REJECT" to "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕС‚РєР»РѕРЅРёС‚СЊ Р·Р°СЏРІРєСѓ",
+            "APPROVE" to "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕРґРѕР±СЂРёС‚СЊ Р·Р°СЏРІРєСѓ",
+            "APPROVE_WITH_CONDITIONS" to "РћРґРѕР±СЂРёС‚СЊ СЃ СѓСЃР»РѕРІРёСЏРјРё",
+            "REVIEW_REQUIRED" to "РўСЂРµР±СѓРµС‚СЃСЏ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРІРµСЂРєР°"
         )
         
         var result = json
         for (code in recommendationCodes) {
-            // Заменяем код рекомендации в массиве recommendations на текстовое описание
-            // Ищем шаблон: "REJECT" (внутри массива recommendations)
+            // Р—Р°РјРµРЅСЏРµРј РєРѕРґ СЂРµРєРѕРјРµРЅРґР°С†РёРё РІ РјР°СЃСЃРёРІРµ recommendations РЅР° С‚РµРєСЃС‚РѕРІРѕРµ РѕРїРёСЃР°РЅРёРµ
+            // РС‰РµРј С€Р°Р±Р»РѕРЅ: "REJECT" (РІРЅСѓС‚СЂРё РјР°СЃСЃРёРІР° recommendations)
             val description = recommendationDescriptions[code] ?: code
             result = result.replace("\"$code\"", "\"$description\"")
         }
@@ -522,17 +499,17 @@ class GigaChatRepository @Inject constructor() {
     }
     
     /**
-     * Создаёт оценку рисков при ошибке парсинга
+     * РЎРѕР·РґР°С‘С‚ РѕС†РµРЅРєСѓ СЂРёСЃРєРѕРІ РїСЂРё РѕС€РёР±РєРµ РїР°СЂСЃРёРЅРіР°
      */
     private fun createFallbackAssessment(rawResponse: String): GigaChatRiskAssessment {
         return GigaChatRiskAssessment(
             overallRisk = RiskLevel.MEDIUM,
             riskScore = 50,
             riskFactors = emptyList(),
-            positiveFactors = listOf("Кандидат прошёл опросник"),
-            recommendations = listOf("Провести личную встречу для уточнения деталей"),
+            positiveFactors = listOf("РљР°РЅРґРёРґР°С‚ РїСЂРѕС€С‘Р» РѕРїСЂРѕСЃРЅРёРє"),
+            recommendations = listOf("РџСЂРѕРІРµСЃС‚Рё Р»РёС‡РЅСѓСЋ РІСЃС‚СЂРµС‡Сѓ РґР»СЏ СѓС‚РѕС‡РЅРµРЅРёСЏ РґРµС‚Р°Р»РµР№"),
             detailedAnalysis = rawResponse.take(500),
-            recommendation = "Требуется дополнительная проверка"
+            recommendation = "РўСЂРµР±СѓРµС‚СЃСЏ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРІРµСЂРєР°"
         )
     }
 }

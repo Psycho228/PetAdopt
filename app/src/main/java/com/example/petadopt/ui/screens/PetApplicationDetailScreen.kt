@@ -1,4 +1,4 @@
-package com.example.petadopt.ui.screens
+﻿package com.example.petadopt.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
-import com.example.petadopt.data.model.Application
 import com.example.petadopt.data.model.QuestionnaireAnswer
 import com.example.petadopt.data.model.RiskAssessmentRecord
 import com.example.petadopt.data.model.RiskLevel
@@ -35,7 +35,7 @@ import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.AdminViewModel
 import kotlinx.serialization.json.Json
 
-// ─── Цвета для уровней риска ────────────────────────────────────
+// в”Ђв”Ђв”Ђ Р¦РІРµС‚Р° РґР»СЏ СѓСЂРѕРІРЅРµР№ СЂРёСЃРєР° в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 private val RiskLow = Color(0xFF4CAF50)
 private val RiskMedium = Color(0xFFFF9800)
 private val RiskHigh = Color(0xFFF44336)
@@ -45,25 +45,26 @@ private val RiskVeryHigh = Color(0xFFB71C1C)
 @Composable
 fun PetApplicationDetailScreen(
     navController: NavHostController,
-    application: Application,
+    applicationId: String,
     viewModel: AdminViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val application = uiState.currentApplication
     var questionnaire by remember { mutableStateOf<QuestionnaireAnswer?>(null) }
     var riskAssessment by remember { mutableStateOf<RiskAssessmentRecord?>(null) }
     var isLoadingQuestionnaire by remember { mutableStateOf(true) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showRejectDialog by remember { mutableStateOf(false) }
 
-    LaunchedEffect(application.user_id) {
+    LaunchedEffect(applicationId) {
         isLoadingQuestionnaire = true
         questionnaire = null
         riskAssessment = null
-        viewModel.loadQuestionnaireForUser(application.user_id)
+        viewModel.loadApplicationById(applicationId)
     }
 
-    val uiState by viewModel.uiState.collectAsState()
-    LaunchedEffect(uiState.currentQuestionnaire, uiState.currentRiskAssessment) {
-        isLoadingQuestionnaire = false
+    LaunchedEffect(application, uiState.currentQuestionnaire, uiState.currentRiskAssessment) {
+        isLoadingQuestionnaire = application == null || uiState.isLoading
         questionnaire = uiState.currentQuestionnaire
         riskAssessment = uiState.currentRiskAssessment
     }
@@ -73,9 +74,9 @@ fun PetApplicationDetailScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text("Заявка", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("Р—Р°СЏРІРєР°", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                         Text(
-                            text = application.user_name,
+                            text = application?.user_name.orEmpty(),
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.8f),
                             maxLines = 1,
@@ -87,7 +88,7 @@ fun PetApplicationDetailScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = "РќР°Р·Р°Рґ",
                             tint = Color.White
                         )
                     }
@@ -99,7 +100,7 @@ fun PetApplicationDetailScreen(
             )
         },
         bottomBar = {
-            Surface(
+            if (application != null) Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp
@@ -110,6 +111,21 @@ fun PetApplicationDetailScreen(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // РљРЅРѕРїРєР° С‡Р°С‚Р°
+                    OutlinedButton(
+                        onClick = { 
+                            navController.navigate("chat/${application.id}") 
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Primary
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Default.Chat, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Р§Р°С‚")
+                    }
                     OutlinedButton(
                         onClick = { showRejectDialog = true },
                         modifier = Modifier.weight(1f),
@@ -120,7 +136,7 @@ fun PetApplicationDetailScreen(
                     ) {
                         Icon(Icons.Outlined.Close, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Отклонить")
+                        Text("РћС‚РєР»РѕРЅРёС‚СЊ")
                     }
                     Button(
                         onClick = { showConfirmDialog = true },
@@ -130,7 +146,7 @@ fun PetApplicationDetailScreen(
                     ) {
                         Icon(Icons.Outlined.Check, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Подтвердить")
+                        Text("РџРѕРґС‚РІРµСЂРґРёС‚СЊ")
                     }
                 }
             }
@@ -138,19 +154,19 @@ fun PetApplicationDetailScreen(
     ) { padding ->
         if (isLoadingQuestionnaire) {
             LoadingState(modifier = Modifier.padding(padding))
-        } else if (questionnaire != null) {
+        } else if (application != null && questionnaire != null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .verticalScroll(rememberScrollState())
             ) {
-                // ═══ СТАТУС ЗАЯВКИ ═══
+                // в•ђв•ђв•ђ РЎРўРђРўРЈРЎ Р—РђРЇР’РљР в•ђв•ђв•ђ
                 StatusBanner(status = application.status)
 
                 Spacer(Modifier.height(12.dp))
 
-                // ═══ ДЕТАЛЬНАЯ ОЦЕНКА РИСКОВ (GigaChat) — главный блок ═══
+                // в•ђв•ђв•ђ Р”Р•РўРђР›Р¬РќРђРЇ РћР¦Р•РќРљРђ Р РРЎРљРћР’ (GigaChat) вЂ” РіР»Р°РІРЅС‹Р№ Р±Р»РѕРє в•ђв•ђв•ђ
                 if (riskAssessment != null) {
                     DetailedRiskAssessment(
                         risk = riskAssessment!!,
@@ -158,7 +174,7 @@ fun PetApplicationDetailScreen(
                     )
                     Spacer(Modifier.height(16.dp))
                 } else {
-                    // Плейсхолдер если оценки нет
+                    // РџР»РµР№СЃС…РѕР»РґРµСЂ РµСЃР»Рё РѕС†РµРЅРєРё РЅРµС‚
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -182,7 +198,7 @@ fun PetApplicationDetailScreen(
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                "Оценка рисков не проводилась",
+                                "РћС†РµРЅРєР° СЂРёСЃРєРѕРІ РЅРµ РїСЂРѕРІРѕРґРёР»Р°СЃСЊ",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextSecondary
                             )
@@ -191,24 +207,24 @@ fun PetApplicationDetailScreen(
                     Spacer(Modifier.height(16.dp))
                 }
 
-                // ═══ КОНТАКТНАЯ ИНФОРМАЦИЯ ═══
+                // в•ђв•ђв•ђ РљРћРќРўРђРљРўРќРђРЇ РРќР¤РћР РњРђР¦РРЇ в•ђв•ђв•ђ
                 SectionHeader(
                     icon = Icons.Outlined.Person,
-                    title = "Контактная информация"
+                    title = "РљРѕРЅС‚Р°РєС‚РЅР°СЏ РёРЅС„РѕСЂРјР°С†РёСЏ"
                 )
-                ContactRow(Icons.Outlined.Phone, "Телефон", questionnaire!!.q1_phone.ifBlank { "Не указан" })
-                ContactRow(Icons.Outlined.Email, "Email", questionnaire!!.q1_email.ifBlank { "Не указан" })
-                ContactRow(Icons.Outlined.LocationOn, "Город", questionnaire!!.q1_city.ifBlank { "Не указан" })
-                ContactRow(Icons.Outlined.Cake, "Возраст", "${questionnaire!!.q1_age ?: "Не указан"} лет")
-                ContactRow(Icons.Outlined.BusinessCenter, "Род занятий", questionnaire!!.q1_occupation.ifBlank { "Не указан" })
+                ContactRow(Icons.Outlined.Phone, "РўРµР»РµС„РѕРЅ", questionnaire!!.q1_phone.ifBlank { "РќРµ СѓРєР°Р·Р°РЅ" })
+                ContactRow(Icons.Outlined.Email, "Email", questionnaire!!.q1_email.ifBlank { "РќРµ СѓРєР°Р·Р°РЅ" })
+                ContactRow(Icons.Outlined.LocationOn, "Р“РѕСЂРѕРґ", questionnaire!!.q1_city.ifBlank { "РќРµ СѓРєР°Р·Р°РЅ" })
+                ContactRow(Icons.Outlined.Cake, "Р’РѕР·СЂР°СЃС‚", "${questionnaire!!.q1_age ?: "РќРµ СѓРєР°Р·Р°РЅ"} Р»РµС‚")
+                ContactRow(Icons.Outlined.BusinessCenter, "Р РѕРґ Р·Р°РЅСЏС‚РёР№", questionnaire!!.q1_occupation.ifBlank { "РќРµ СѓРєР°Р·Р°РЅ" })
 
                 Spacer(Modifier.height(8.dp))
 
-                // ═══ СООБЩЕНИЕ ОТ ЗАЯВИТЕЛЯ ═══
+                // в•ђв•ђв•ђ РЎРћРћР‘Р©Р•РќРР• РћРў Р—РђРЇР’РРўР•Р›РЇ в•ђв•ђв•ђ
                 if (application.message.isNotBlank()) {
                     SectionHeader(
                         icon = Icons.Outlined.Message,
-                        title = "Сообщение от заявителя"
+                        title = "РЎРѕРѕР±С‰РµРЅРёРµ РѕС‚ Р·Р°СЏРІРёС‚РµР»СЏ"
                     )
                     Card(
                         modifier = Modifier
@@ -228,17 +244,22 @@ fun PetApplicationDetailScreen(
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // ═══ ВРЕМЯ КОНТАКТА ═══
-                if (application.contact_time.isNotBlank()) {
+                // в•ђв•ђв•ђ Р’Р Р•РњРЇ РљРћРќРўРђРљРўРђ в•ђв•ђв•ђ
+                if (application.contact_time?.isNotBlank() == true || application.contact_days?.isNotBlank() == true) {
                     SectionHeader(
                         icon = Icons.Outlined.Schedule,
-                        title = "Предпочтительное время контакта"
+                        title = "РџСЂРµРґРїРѕС‡С‚РёС‚РµР»СЊРЅРѕРµ РІСЂРµРјСЏ РєРѕРЅС‚Р°РєС‚Р°"
                     )
-                    ContactRow(Icons.Outlined.AccessTime, "Время для связи", application.contact_time)
+                    if (application.contact_days?.isNotBlank() == true) {
+                        ContactRow(Icons.Outlined.CalendarToday, "Р”РЅРё РЅРµРґРµР»Рё", application.contact_days ?: "")
+                    }
+                    if (application.contact_time?.isNotBlank() == true) {
+                        ContactRow(Icons.Outlined.AccessTime, "Р’СЂРµРјСЏ РґР»СЏ СЃРІСЏР·Рё", application.contact_time ?: "")
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
 
-                // ═══ СВОРАЧИВАЕМЫЕ РАЗДЕЛЫ ОПРОСНИКА ═══
+                // в•ђв•ђв•ђ РЎР’РћР РђР§РР’РђР•РњР«Р• Р РђР—Р”Р•Р›Р« РћРџР РћРЎРќРРљРђ в•ђв•ђв•ђ
                 var expandedHousing by remember { mutableStateOf(false) }
                 var expandedExperience by remember { mutableStateOf(false) }
                 var expandedPlans by remember { mutableStateOf(false) }
@@ -247,133 +268,133 @@ fun PetApplicationDetailScreen(
                 var expandedEmotional by remember { mutableStateOf(false) }
                 var expandedDesired by remember { mutableStateOf(false) }
 
-                // Жилищные условия
+                // Р–РёР»РёС‰РЅС‹Рµ СѓСЃР»РѕРІРёСЏ
                 QuestionnaireExpandable(
-                    title = "Жилищные условия",
+                    title = "Р–РёР»РёС‰РЅС‹Рµ СѓСЃР»РѕРІРёСЏ",
                     expanded = expandedHousing,
                     onToggle = { expandedHousing = !expandedHousing }
                 ) {
-                    ContactRow(Icons.Outlined.Home, "Тип жилья", questionnaire!!.q2_housing_type.ifBlank { "Не указано" })
-                    ContactRow(Icons.Outlined.Groups, "С кем живёт", questionnaire!!.q2_living_with.joinToString(", ").ifEmpty { "Не указано" })
-                    ContactRow(Icons.Outlined.ChildCare, "Дети",
-                        if (questionnaire!!.q2_has_children == true) "Да (${questionnaire!!.q2_children_ages})" else "Нет")
-                    ContactRow(Icons.Outlined.Pets, "Другие животные",
-                        if (questionnaire!!.q2_has_other_pets == true) "Да (${questionnaire!!.q2_other_pets_types.joinToString(", ")})" else "Нет")
-                    ContactRow(Icons.Outlined.Timer, "Часов в одиночестве", "${questionnaire!!.q2_hours_alone ?: 0} ч.")
+                    ContactRow(Icons.Outlined.Home, "РўРёРї Р¶РёР»СЊСЏ", questionnaire!!.q2_housing_type.ifBlank { "РќРµ СѓРєР°Р·Р°РЅРѕ" })
+                    ContactRow(Icons.Outlined.Groups, "РЎ РєРµРј Р¶РёРІС‘С‚", questionnaire!!.q2_living_with.joinToString(", ").ifEmpty { "РќРµ СѓРєР°Р·Р°РЅРѕ" })
+                    ContactRow(Icons.Outlined.ChildCare, "Р”РµС‚Рё",
+                        if (questionnaire!!.q2_has_children == true) "Р”Р° (${questionnaire!!.q2_children_ages})" else "РќРµС‚")
+                    ContactRow(Icons.Outlined.Pets, "Р”СЂСѓРіРёРµ Р¶РёРІРѕС‚РЅС‹Рµ",
+                        if (questionnaire!!.q2_has_other_pets == true) "Р”Р° (${questionnaire!!.q2_other_pets_types.joinToString(", ")})" else "РќРµС‚")
+                    ContactRow(Icons.Outlined.Timer, "Р§Р°СЃРѕРІ РІ РѕРґРёРЅРѕС‡РµСЃС‚РІРµ", "${questionnaire!!.q2_hours_alone ?: 0} С‡.")
                 }
 
-                // Опыт
+                // РћРїС‹С‚
                 QuestionnaireExpandable(
-                    title = "Опыт с животными",
+                    title = "РћРїС‹С‚ СЃ Р¶РёРІРѕС‚РЅС‹РјРё",
                     expanded = expandedExperience,
                     onToggle = { expandedExperience = !expandedExperience }
                 ) {
-                    ContactRow(Icons.Outlined.CheckCircle, "Опыт с собаками", yn(questionnaire!!.q3_dog_experience))
-                    ContactRow(Icons.Outlined.CheckCircle, "Опыт с кошками", yn(questionnaire!!.q3_cat_experience))
+                    ContactRow(Icons.Outlined.CheckCircle, "РћРїС‹С‚ СЃ СЃРѕР±Р°РєР°РјРё", yn(questionnaire!!.q3_dog_experience))
+                    ContactRow(Icons.Outlined.CheckCircle, "РћРїС‹С‚ СЃ РєРѕС€РєР°РјРё", yn(questionnaire!!.q3_cat_experience))
                     if (questionnaire!!.q3_why_now.isNotBlank()) {
                         Spacer(Modifier.height(8.dp))
-                        TextBlock("Почему сейчас?", questionnaire!!.q3_why_now)
+                        TextBlock("РџРѕС‡РµРјСѓ СЃРµР№С‡Р°СЃ?", questionnaire!!.q3_why_now)
                     }
                 }
 
-                // Планы
+                // РџР»Р°РЅС‹
                 QuestionnaireExpandable(
-                    title = "План в сложных ситуациях",
+                    title = "РџР»Р°РЅ РІ СЃР»РѕР¶РЅС‹С… СЃРёС‚СѓР°С†РёСЏС…",
                     expanded = expandedPlans,
                     onToggle = { expandedPlans = !expandedPlans }
                 ) {
                     if (questionnaire!!.q4_furniture_damage_plan.isNotBlank())
-                        TextBlock("Порча мебели", questionnaire!!.q4_furniture_damage_plan)
+                        TextBlock("РџРѕСЂС‡Р° РјРµР±РµР»Рё", questionnaire!!.q4_furniture_damage_plan)
                     if (questionnaire!!.q4_noise_plan.isNotBlank())
-                        TextBlock("Шум", questionnaire!!.q4_noise_plan)
+                        TextBlock("РЁСѓРј", questionnaire!!.q4_noise_plan)
                     if (questionnaire!!.q4_shy_pet_plan.isNotBlank())
-                        TextBlock("Пугливый питомец", questionnaire!!.q4_shy_pet_plan)
+                        TextBlock("РџСѓРіР»РёРІС‹Р№ РїРёС‚РѕРјРµС†", questionnaire!!.q4_shy_pet_plan)
                     if (questionnaire!!.q4_long_adaptation_plan.isNotBlank())
-                        TextBlock("Долгая адаптация", questionnaire!!.q4_long_adaptation_plan)
+                        TextBlock("Р”РѕР»РіР°СЏ Р°РґР°РїС‚Р°С†РёСЏ", questionnaire!!.q4_long_adaptation_plan)
                 }
 
-                // Ответственность
+                // РћС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚СЊ
                 QuestionnaireExpandable(
-                    title = "Ответственность и готовность",
+                    title = "РћС‚РІРµС‚СЃС‚РІРµРЅРЅРѕСЃС‚СЊ Рё РіРѕС‚РѕРІРЅРѕСЃС‚СЊ",
                     expanded = expandedResponsibility,
                     onToggle = { expandedResponsibility = !expandedResponsibility }
                 ) {
                     val understand = mutableListOf<String>()
-                    if (questionnaire!!.q4_understand_time == true) understand.add("Время")
-                    if (questionnaire!!.q4_understand_attention == true) understand.add("Внимание")
-                    if (questionnaire!!.q4_understand_training == true) understand.add("Обучение")
-                    if (questionnaire!!.q4_understand_vet_care == true) understand.add("Ветпомощь")
-                    ContactRow(Icons.Outlined.Lightbulb, "Понимание требований", understand.joinToString(", ").ifEmpty { "—" })
+                    if (questionnaire!!.q4_understand_time == true) understand.add("Р’СЂРµРјСЏ")
+                    if (questionnaire!!.q4_understand_attention == true) understand.add("Р’РЅРёРјР°РЅРёРµ")
+                    if (questionnaire!!.q4_understand_training == true) understand.add("РћР±СѓС‡РµРЅРёРµ")
+                    if (questionnaire!!.q4_understand_vet_care == true) understand.add("Р’РµС‚РїРѕРјРѕС‰СЊ")
+                    ContactRow(Icons.Outlined.Lightbulb, "РџРѕРЅРёРјР°РЅРёРµ С‚СЂРµР±РѕРІР°РЅРёР№", understand.joinToString(", ").ifEmpty { "вЂ”" })
 
                     val expenses = mutableListOf<String>()
-                    if (questionnaire!!.q4_ready_food == true) expenses.add("Корм")
-                    if (questionnaire!!.q4_ready_vet == true) expenses.add("Ветеринар")
-                    if (questionnaire!!.q4_ready_medication == true) expenses.add("Лекарства")
-                    if (questionnaire!!.q4_ready_vaccinations == true) expenses.add("Прививки")
-                    if (questionnaire!!.q4_ready_grooming == true) expenses.add("Груминг")
-                    ContactRow(Icons.Outlined.AttachMoney, "Готовность к расходам", expenses.joinToString(", ").ifEmpty { "—" })
+                    if (questionnaire!!.q4_ready_food == true) expenses.add("РљРѕСЂРј")
+                    if (questionnaire!!.q4_ready_vet == true) expenses.add("Р’РµС‚РµСЂРёРЅР°СЂ")
+                    if (questionnaire!!.q4_ready_medication == true) expenses.add("Р›РµРєР°СЂСЃС‚РІР°")
+                    if (questionnaire!!.q4_ready_vaccinations == true) expenses.add("РџСЂРёРІРёРІРєРё")
+                    if (questionnaire!!.q4_ready_grooming == true) expenses.add("Р“СЂСѓРјРёРЅРі")
+                    ContactRow(Icons.Outlined.AttachMoney, "Р“РѕС‚РѕРІРЅРѕСЃС‚СЊ Рє СЂР°СЃС…РѕРґР°Рј", expenses.joinToString(", ").ifEmpty { "вЂ”" })
 
-                    ContactRow(Icons.Outlined.School, "Готовность к воспитанию", yn(questionnaire!!.q4_ready_education))
+                    ContactRow(Icons.Outlined.School, "Р“РѕС‚РѕРІРЅРѕСЃС‚СЊ Рє РІРѕСЃРїРёС‚Р°РЅРёСЋ", yn(questionnaire!!.q4_ready_education))
 
                     if (questionnaire!!.q4_life_changes_plan.isNotBlank())
-                        TextBlock("При изменении обстоятельств", questionnaire!!.q4_life_changes_plan)
+                        TextBlock("РџСЂРё РёР·РјРµРЅРµРЅРёРё РѕР±СЃС‚РѕСЏС‚РµР»СЊСЃС‚РІ", questionnaire!!.q4_life_changes_plan)
                     if (questionnaire!!.q4_obstacles_next_year.isNotBlank())
-                        TextBlock("Препятствия в ближайший год", questionnaire!!.q4_obstacles_next_year)
+                        TextBlock("РџСЂРµРїСЏС‚СЃС‚РІРёСЏ РІ Р±Р»РёР¶Р°Р№С€РёР№ РіРѕРґ", questionnaire!!.q4_obstacles_next_year)
                 }
 
-                // Безопасность
+                // Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ
                 QuestionnaireExpandable(
-                    title = "Безопасность",
+                    title = "Р‘РµР·РѕРїР°СЃРЅРѕСЃС‚СЊ",
                     expanded = expandedSafety,
                     onToggle = { expandedSafety = !expandedSafety }
                 ) {
-                    ContactRow(Icons.Outlined.Security, "Меры безопасности",
-                        questionnaire!!.q5_safety_measures.joinToString(", ").ifEmpty { "Не указаны" })
-                    ContactRow(Icons.Outlined.VolunteerActivism, "Готовность к стерилизации", yn(questionnaire!!.q5_ready_neuter))
-                    ContactRow(Icons.Outlined.Recommend, "Следование рекомендациям", yn(questionnaire!!.q5_ready_recommendations))
-                    ContactRow(Icons.Outlined.Badge, "Установка адресника", yn(questionnaire!!.q5_ready_tracker))
-                    ContactRow(Icons.Outlined.ConnectWithoutContact, "Поддержание связи", yn(questionnaire!!.q5_ready_keep_contact))
+                    ContactRow(Icons.Outlined.Security, "РњРµСЂС‹ Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё",
+                        questionnaire!!.q5_safety_measures.joinToString(", ").ifEmpty { "РќРµ СѓРєР°Р·Р°РЅС‹" })
+                    ContactRow(Icons.Outlined.VolunteerActivism, "Р“РѕС‚РѕРІРЅРѕСЃС‚СЊ Рє СЃС‚РµСЂРёР»РёР·Р°С†РёРё", yn(questionnaire!!.q5_ready_neuter))
+                    ContactRow(Icons.Outlined.Recommend, "РЎР»РµРґРѕРІР°РЅРёРµ СЂРµРєРѕРјРµРЅРґР°С†РёСЏРј", yn(questionnaire!!.q5_ready_recommendations))
+                    ContactRow(Icons.Outlined.Badge, "РЈСЃС‚Р°РЅРѕРІРєР° Р°РґСЂРµСЃРЅРёРєР°", yn(questionnaire!!.q5_ready_tracker))
+                    ContactRow(Icons.Outlined.ConnectWithoutContact, "РџРѕРґРґРµСЂР¶Р°РЅРёРµ СЃРІСЏР·Рё", yn(questionnaire!!.q5_ready_keep_contact))
                 }
 
-                // Эмоциональная
+                // Р­РјРѕС†РёРѕРЅР°Р»СЊРЅР°СЏ
                 QuestionnaireExpandable(
-                    title = "Эмоциональная часть",
+                    title = "Р­РјРѕС†РёРѕРЅР°Р»СЊРЅР°СЏ С‡Р°СЃС‚СЊ",
                     expanded = expandedEmotional,
                     onToggle = { expandedEmotional = !expandedEmotional }
                 ) {
                     if (questionnaire!!.q6_responsible_owner_meaning.isNotBlank())
-                        TextBlock("Ответственный хозяин — это?", questionnaire!!.q6_responsible_owner_meaning)
+                        TextBlock("РћС‚РІРµС‚СЃС‚РІРµРЅРЅС‹Р№ С…РѕР·СЏРёРЅ вЂ” СЌС‚Рѕ?", questionnaire!!.q6_responsible_owner_meaning)
                     if (questionnaire!!.q6_life_with_pet_vision.isNotBlank())
-                        TextBlock("Жизнь с питомцем", questionnaire!!.q6_life_with_pet_vision)
+                        TextBlock("Р–РёР·РЅСЊ СЃ РїРёС‚РѕРјС†РµРј", questionnaire!!.q6_life_with_pet_vision)
                     if (questionnaire!!.q6_why_good_owner.isNotBlank())
-                        TextBlock("Почему хороший хозяин?", questionnaire!!.q6_why_good_owner)
+                        TextBlock("РџРѕС‡РµРјСѓ С…РѕСЂРѕС€РёР№ С…РѕР·СЏРёРЅ?", questionnaire!!.q6_why_good_owner)
                 }
 
-                // Желаемые виды
+                // Р–РµР»Р°РµРјС‹Рµ РІРёРґС‹
                 QuestionnaireExpandable(
-                    title = "Желаемые виды животных",
+                    title = "Р–РµР»Р°РµРјС‹Рµ РІРёРґС‹ Р¶РёРІРѕС‚РЅС‹С…",
                     expanded = expandedDesired,
                     onToggle = { expandedDesired = !expandedDesired }
                 ) {
-                    ContactRow(Icons.Outlined.FavoriteBorder, "Интересуют",
-                        questionnaire!!.q7_desired_pets.joinToString(", ").ifEmpty { "Не указаны" })
+                    ContactRow(Icons.Outlined.FavoriteBorder, "РРЅС‚РµСЂРµСЃСѓСЋС‚",
+                        questionnaire!!.q7_desired_pets.joinToString(", ").ifEmpty { "РќРµ СѓРєР°Р·Р°РЅС‹" })
                 }
 
                 Spacer(Modifier.height(24.dp))
             }
         } else {
-            // Опросник не найден
+            // РћРїСЂРѕСЃРЅРёРє РЅРµ РЅР°Р№РґРµРЅ
             EmptyQuestionnaire(modifier = Modifier.padding(padding))
         }
     }
 
-    // ── Диалоги подтверждения ──
-    if (showConfirmDialog) {
+    // в”Ђв”Ђ Р”РёР°Р»РѕРіРё РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ в”Ђв”Ђ
+    if (showConfirmDialog && application != null) {
         AlertDialog(
             onDismissRequest = { showConfirmDialog = false },
             icon = { Icon(Icons.Default.CheckCircle, null, tint = RiskLow, modifier = Modifier.size(40.dp)) },
-            title = { Text("Подтвердить заявку?", fontWeight = FontWeight.Bold) },
-            text = { Text("Заявка от ${application.user_name} будет одобрена. Заявитель получит уведомление.") },
+            title = { Text("РџРѕРґС‚РІРµСЂРґРёС‚СЊ Р·Р°СЏРІРєСѓ?", fontWeight = FontWeight.Bold) },
+            text = { Text("Р—Р°СЏРІРєР° РѕС‚ ${application.user_name} Р±СѓРґРµС‚ РѕРґРѕР±СЂРµРЅР°. Р—Р°СЏРІРёС‚РµР»СЊ РїРѕР»СѓС‡РёС‚ СѓРІРµРґРѕРјР»РµРЅРёРµ.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -382,18 +403,18 @@ fun PetApplicationDetailScreen(
                         navController.popBackStack()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = RiskLow)
-                ) { Text("Подтвердить") }
+                ) { Text("РџРѕРґС‚РІРµСЂРґРёС‚СЊ") }
             },
-            dismissButton = { TextButton(onClick = { showConfirmDialog = false }) { Text("Отмена") } }
+            dismissButton = { TextButton(onClick = { showConfirmDialog = false }) { Text("РћС‚РјРµРЅР°") } }
         )
     }
 
-    if (showRejectDialog) {
+    if (showRejectDialog && application != null) {
         AlertDialog(
             onDismissRequest = { showRejectDialog = false },
             icon = { Icon(Icons.Default.Cancel, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(40.dp)) },
-            title = { Text("Отклонить заявку?", fontWeight = FontWeight.Bold) },
-            text = { Text("Заявка от ${application.user_name} будет отклонена. Это действие можно отменить на экране деталей.") },
+            title = { Text("РћС‚РєР»РѕРЅРёС‚СЊ Р·Р°СЏРІРєСѓ?", fontWeight = FontWeight.Bold) },
+            text = { Text("Р—Р°СЏРІРєР° РѕС‚ ${application.user_name} Р±СѓРґРµС‚ РѕС‚РєР»РѕРЅРµРЅР°. Р­С‚Рѕ РґРµР№СЃС‚РІРёРµ РјРѕР¶РЅРѕ РѕС‚РјРµРЅРёС‚СЊ РЅР° СЌРєСЂР°РЅРµ РґРµС‚Р°Р»РµР№.") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -402,16 +423,16 @@ fun PetApplicationDetailScreen(
                         navController.popBackStack()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Отклонить") }
+                ) { Text("РћС‚РєР»РѕРЅРёС‚СЊ") }
             },
-            dismissButton = { TextButton(onClick = { showRejectDialog = false }) { Text("Отмена") } }
+            dismissButton = { TextButton(onClick = { showRejectDialog = false }) { Text("РћС‚РјРµРЅР°") } }
         )
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ДЕТАЛЬНАЯ ОЦЕНКА РИСКОВ (ГЛАВНЫЙ БЛОК)
-// ═══════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// Р”Р•РўРђР›Р¬РќРђРЇ РћР¦Р•РќРљРђ Р РРЎРљРћР’ (Р“Р›РђР’РќР«Р™ Р‘Р›РћРљ)
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 @Composable
 private fun DetailedRiskAssessment(
@@ -449,7 +470,7 @@ private fun DetailedRiskAssessment(
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // ── Шапка с градиентом ──
+            // в”Ђв”Ђ РЁР°РїРєР° СЃ РіСЂР°РґРёРµРЅС‚РѕРј в”Ђв”Ђ
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -485,18 +506,18 @@ private fun DetailedRiskAssessment(
                     Spacer(Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Оценка рисков",
+                            "РћС†РµРЅРєР° СЂРёСЃРєРѕРІ",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
                         Text(
-                            "🔒 GigaChat AI",
+                            "рџ”’ GigaChat AI",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color.White.copy(alpha = 0.8f)
                         )
                     }
-                    // Бейдж уровня риска
+                    // Р‘РµР№РґР¶ СѓСЂРѕРІРЅСЏ СЂРёСЃРєР°
                     Surface(
                         shape = RoundedCornerShape(10.dp),
                         color = Color.White.copy(alpha = 0.25f)
@@ -513,13 +534,13 @@ private fun DetailedRiskAssessment(
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
-                // ── Балл риска с прогресс-баром ──
+                // в”Ђв”Ђ Р‘Р°Р»Р» СЂРёСЃРєР° СЃ РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂРѕРј в”Ђв”Ђ
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Балл риска",
+                        text = "Р‘Р°Р»Р» СЂРёСЃРєР°",
                         style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
@@ -533,7 +554,7 @@ private fun DetailedRiskAssessment(
                 }
                 Spacer(Modifier.height(8.dp))
 
-                // Кастомный прогресс-бар
+                // РљР°СЃС‚РѕРјРЅС‹Р№ РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂ
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -554,21 +575,21 @@ private fun DetailedRiskAssessment(
                     )
                 }
 
-                // Метки под прогресс-баром
+                // РњРµС‚РєРё РїРѕРґ РїСЂРѕРіСЂРµСЃСЃ-Р±Р°СЂРѕРј
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Низкий", style = MaterialTheme.typography.labelSmall, color = RiskLow)
-                    Text("Средний", style = MaterialTheme.typography.labelSmall, color = RiskMedium)
-                    Text("Высокий", style = MaterialTheme.typography.labelSmall, color = RiskHigh)
+                    Text("РќРёР·РєРёР№", style = MaterialTheme.typography.labelSmall, color = RiskLow)
+                    Text("РЎСЂРµРґРЅРёР№", style = MaterialTheme.typography.labelSmall, color = RiskMedium)
+                    Text("Р’С‹СЃРѕРєРёР№", style = MaterialTheme.typography.labelSmall, color = RiskHigh)
                 }
 
                 Spacer(Modifier.height(20.dp))
 
-                // ── Итоговая рекомендация ──
+                // в”Ђв”Ђ РС‚РѕРіРѕРІР°СЏ СЂРµРєРѕРјРµРЅРґР°С†РёСЏ в”Ђв”Ђ
                 Text(
-                    text = "Вердикт",
+                    text = "Р’РµСЂРґРёРєС‚",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = TextSecondary
@@ -597,10 +618,10 @@ private fun DetailedRiskAssessment(
                         Text(
                             text = risk.recommendation.ifBlank {
                                 when (riskLevel) {
-                                    RiskLevel.LOW -> "Рекомендуется одобрить"
-                                    RiskLevel.MEDIUM -> "Одобрить с условиями"
-                                    RiskLevel.HIGH -> "Требуется дополнительная проверка"
-                                    RiskLevel.VERY_HIGH -> "Рекомендуется отклонить"
+                                    RiskLevel.LOW -> "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕРґРѕР±СЂРёС‚СЊ"
+                                    RiskLevel.MEDIUM -> "РћРґРѕР±СЂРёС‚СЊ СЃ СѓСЃР»РѕРІРёСЏРјРё"
+                                    RiskLevel.HIGH -> "РўСЂРµР±СѓРµС‚СЃСЏ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРІРµСЂРєР°"
+                                    RiskLevel.VERY_HIGH -> "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕС‚РєР»РѕРЅРёС‚СЊ"
                                 }
                             },
                             style = MaterialTheme.typography.bodyLarge,
@@ -610,11 +631,11 @@ private fun DetailedRiskAssessment(
                     }
                 }
 
-                // ── Детальный анализ ──
+                // в”Ђв”Ђ Р”РµС‚Р°Р»СЊРЅС‹Р№ Р°РЅР°Р»РёР· в”Ђв”Ђ
                 if (risk.detailedAnalysis.isNotBlank()) {
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        text = "Детальный анализ",
+                        text = "Р”РµС‚Р°Р»СЊРЅС‹Р№ Р°РЅР°Р»РёР·",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = TextSecondary
@@ -636,33 +657,33 @@ private fun DetailedRiskAssessment(
                     }
                 }
 
-                // ── Факторы риска ──
+                // в”Ђв”Ђ Р¤Р°РєС‚РѕСЂС‹ СЂРёСЃРєР° в”Ђв”Ђ
                 if (riskFactors.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     FactorSection(
-                        title = "Факторы риска",
-                        emoji = "⚠️",
+                        title = "Р¤Р°РєС‚РѕСЂС‹ СЂРёСЃРєР°",
+                        emoji = "вљ пёЏ",
                         items = riskFactors,
                         color = MaterialTheme.colorScheme.error
                     )
                 }
 
-                // ── Положительные факторы ──
+                // в”Ђв”Ђ РџРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Рµ С„Р°РєС‚РѕСЂС‹ в”Ђв”Ђ
                 if (positiveFactors.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     FactorSection(
-                        title = "Положительные факторы",
-                        emoji = "✅",
+                        title = "РџРѕР»РѕР¶РёС‚РµР»СЊРЅС‹Рµ С„Р°РєС‚РѕСЂС‹",
+                        emoji = "вњ…",
                         items = positiveFactors,
                         color = RiskLow
                     )
                 }
 
-                // ── Рекомендации ──
+                // в”Ђв”Ђ Р РµРєРѕРјРµРЅРґР°С†РёРё в”Ђв”Ђ
                 if (recommendations.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
                     Text(
-                        text = "Рекомендации",
+                        text = "Р РµРєРѕРјРµРЅРґР°С†РёРё",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = TextSecondary
@@ -705,9 +726,9 @@ private fun DetailedRiskAssessment(
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ВСПОМОГАТЕЛЬНЫЕ КОМПОНЕНТЫ
-// ═══════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// Р’РЎРџРћРњРћР“РђРўР•Р›Р¬РќР«Р• РљРћРњРџРћРќР•РќРўР«
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
 @Composable
 private fun FactorSection(
@@ -766,7 +787,7 @@ private fun StatusBanner(status: String) {
             Spacer(Modifier.width(10.dp))
             Column {
                 Text(
-                    text = "Статус заявки",
+                    text = "РЎС‚Р°С‚СѓСЃ Р·Р°СЏРІРєРё",
                     style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )
@@ -897,7 +918,7 @@ private fun LoadingState(modifier: Modifier = Modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator(color = Primary, modifier = Modifier.size(48.dp), strokeWidth = 4.dp)
             Spacer(Modifier.height(16.dp))
-            Text("Загрузка данных заявителя...", color = TextSecondary, fontSize = 15.sp)
+            Text("Р—Р°РіСЂСѓР·РєР° РґР°РЅРЅС‹С… Р·Р°СЏРІРёС‚РµР»СЏ...", color = TextSecondary, fontSize = 15.sp)
         }
     }
 }
@@ -916,18 +937,18 @@ private fun EmptyQuestionnaire(modifier: Modifier = Modifier) {
                 }
             }
             Spacer(Modifier.height(20.dp))
-            Text("Данные заявителя не найдены", fontWeight = FontWeight.Bold, color = TextSecondary)
+            Text("Р”Р°РЅРЅС‹Рµ Р·Р°СЏРІРёС‚РµР»СЏ РЅРµ РЅР°Р№РґРµРЅС‹", fontWeight = FontWeight.Bold, color = TextSecondary)
             Spacer(Modifier.height(6.dp))
-            Text("Пользователь не заполнил опросник", style = MaterialTheme.typography.bodyMedium, color = TextSecondary.copy(alpha = 0.6f))
+            Text("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅРµ Р·Р°РїРѕР»РЅРёР» РѕРїСЂРѕСЃРЅРёРє", style = MaterialTheme.typography.bodyMedium, color = TextSecondary.copy(alpha = 0.6f))
         }
     }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// УТИЛИТЫ
-// ═══════════════════════════════════════════════════════════════
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
+// РЈРўРР›РРўР«
+// в•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђв•ђ
 
-private fun yn(value: Boolean?): String = if (value == true) "Да" else "Нет"
+private fun yn(value: Boolean?): String = if (value == true) "Р”Р°" else "РќРµС‚"
 
 private fun getStatusColor(status: String): Color = when (status) {
     "pending" -> Color(0xFFFF9800)
@@ -938,10 +959,10 @@ private fun getStatusColor(status: String): Color = when (status) {
 }
 
 private fun getStatusText(status: String): String = when (status) {
-    "pending" -> "В ожидании"
-    "processing" -> "В работе"
-    "approved" -> "Принята"
-    "rejected" -> "Отклонена"
+    "pending" -> "Р’ РѕР¶РёРґР°РЅРёРё"
+    "processing" -> "Р’ СЂР°Р±РѕС‚Рµ"
+    "approved" -> "РџСЂРёРЅСЏС‚Р°"
+    "rejected" -> "РћС‚РєР»РѕРЅРµРЅР°"
     else -> status
 }
 
@@ -962,8 +983,8 @@ private fun riskColor(level: RiskLevel): Color = when (level) {
 }
 
 private fun levelLabel(level: RiskLevel): String = when (level) {
-    RiskLevel.LOW -> "🟢 Низкий"
-    RiskLevel.MEDIUM -> "🟡 Средний"
-    RiskLevel.HIGH -> "🔴 Высокий"
-    RiskLevel.VERY_HIGH -> "⚫ Критический"
+    RiskLevel.LOW -> "рџџў РќРёР·РєРёР№"
+    RiskLevel.MEDIUM -> "рџџЎ РЎСЂРµРґРЅРёР№"
+    RiskLevel.HIGH -> "рџ”ґ Р’С‹СЃРѕРєРёР№"
+    RiskLevel.VERY_HIGH -> "вљ« РљСЂРёС‚РёС‡РµСЃРєРёР№"
 }

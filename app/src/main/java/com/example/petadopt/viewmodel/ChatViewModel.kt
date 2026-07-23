@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import android.util.Log
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.*
 import javax.inject.Inject
 
@@ -179,22 +184,24 @@ class ChatViewModel @Inject constructor(
      * Парсит timestamp из Supabase
      */
     private fun parseTimestamp(timestamp: String): Date {
-        return try {
-            val cleanTimestamp = timestamp
-                .replace("Z", "+00:00")
-                .let { 
-                    if (!it.contains("+") && !it.contains("-")) it + "+00:00" else it 
-                }
-            java.time.LocalDateTime.parse(cleanTimestamp)
-                .let { java.util.Date.from(it.atZone(java.time.ZoneId.systemDefault()).toInstant()) }
-        } catch (e: Exception) {
-            // Fallback: пытаемся распарсить как ISO 8601
-            try {
-                Date.from(java.time.Instant.parse(timestamp))
-            } catch (e2: Exception) {
-                Date()
-            }
+        val normalized = timestamp.trim().replace(
+            Regex("([+-]\\d{2})$"),
+            "$1:00"
+        )
+
+        val instant = runCatching {
+            Instant.parse(normalized)
+        }.recoverCatching {
+            OffsetDateTime.parse(normalized, DateTimeFormatter.ISO_OFFSET_DATE_TIME).toInstant()
+        }.recoverCatching {
+            // Timestamp без offset в Supabase трактуем как UTC, а не локальное время устройства.
+            LocalDateTime.parse(normalized, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .toInstant(ZoneOffset.UTC)
+        }.getOrElse { error ->
+            throw IllegalArgumentException("Неизвестный формат времени: $timestamp", error)
         }
+
+        return Date.from(instant)
     }
 
     /**

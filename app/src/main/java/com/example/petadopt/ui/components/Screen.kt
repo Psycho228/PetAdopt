@@ -6,15 +6,21 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.example.petadopt.ui.theme.Background
+import com.example.petadopt.ui.theme.WarmSurface
 
 @Composable
 fun Screen(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Background)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(WarmSurface, Background)
+                )
+            )
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start,

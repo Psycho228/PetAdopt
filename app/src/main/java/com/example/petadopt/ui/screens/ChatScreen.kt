@@ -1,10 +1,5 @@
 package com.example.petadopt.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -38,8 +33,6 @@ import com.example.petadopt.data.model.SenderRole
 import com.example.petadopt.ui.theme.*
 import com.example.petadopt.viewmodel.ChatState
 import com.example.petadopt.viewmodel.ChatViewModel
-import java.text.SimpleDateFormat
-import java.util.*
 
 /**
  * Современный экран чата между пользователем и приютом
@@ -110,29 +103,6 @@ fun ChatScreen(
                 )
             }
             
-            // Плавающая кнопка обновления
-            AnimatedVisibility(
-                visible = state.messages.isNotEmpty() && !state.isLoading,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                FloatingActionButton(
-                    onClick = { viewModel.loadMessages(applicationId) },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(16.dp)
-                        .size(56.dp),
-                    containerColor = Primary,
-                    contentColor = Color.White,
-                    shape = CircleShape
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Обновить",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
         }
     }
 }
@@ -160,9 +130,9 @@ private fun ChatTopAppBar(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = if (isLoading) "Обновление..." else "Онлайн",
+                        text = if (isLoading) "Обновляем сообщения..." else "Чат по заявке",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF66BB6A)
+                        color = Color.White.copy(alpha = 0.76f)
                     )
                 }
             }
@@ -177,21 +147,30 @@ private fun ChatTopAppBar(
             }
         },
         actions = {
-            IconButton(onClick = onRefresh) {
+            FilledTonalIconButton(
+                onClick = onRefresh,
+                enabled = !isLoading,
+                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = Color.White.copy(alpha = 0.16f),
+                    contentColor = Color.White,
+                    disabledContainerColor = Color.White.copy(alpha = 0.10f),
+                    disabledContentColor = Color.White.copy(alpha = 0.72f)
+                )
+            ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                         color = Color.White,
                         strokeWidth = 2.dp
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Ещё",
-                        tint = Color.White
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Обновить сообщения"
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Primary,
@@ -355,7 +334,7 @@ private fun ChatMessageBubble(
             // Пузырёк сообщения
             MessageBubble(
                 message = message.message,
-                timestamp = message.createdAt,
+                timestamp = viewModel.formatTime(message.createdAt),
                 isOwn = isOwn,
                 status = message.status
             )
@@ -774,4 +753,3 @@ private fun QuickReplies(
         }
     }
 }
-
