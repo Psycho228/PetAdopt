@@ -63,7 +63,7 @@ class GigaChatRepository @Inject constructor() {
     }
     
     // GigaChat API РєРѕРЅС„РёРіСѓСЂР°С†РёСЏ
-    private val baseUrl = "https://gigachat.devices.sberbank.ru/api/v1"
+    private val baseUrl = "https://api.giga.chat/v1"
     private val authUrl = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
     
     companion object {
@@ -121,7 +121,7 @@ class GigaChatRepository @Inject constructor() {
             
             // РџСЂРѕРІРµСЂСЏРµРј, РЅРµ РїСѓСЃС‚РѕР№ Р»Рё РєР»СЋС‡
             if (authKey.isEmpty()) {
-                throw IllegalStateException("GIGACHAT_AUTH_KEY РїСѓСЃС‚РѕР№! РџСЂРѕРІРµСЂСЊС‚Рµ .env С„Р°Р№Р»")
+                throw IllegalStateException("GIGACHAT_AUTH_KEY не задан. Проверьте файл .env")
             }
             
             val response = client.post(authUrl) {
@@ -147,13 +147,13 @@ class GigaChatRepository @Inject constructor() {
                 null
             }
             
-            token ?: throw IllegalStateException("РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ JWT С‚РѕРєРµРЅ. РћС‚РІРµС‚: $responseBody")
+            token ?: throw IllegalStateException("Не удалось получить токен GigaChat. Ответ: $responseBody")
             
             Log.d(TAG, "JWT С‚РѕРєРµРЅ СѓСЃРїРµС€РЅРѕ РїРѕР»СѓС‡РµРЅ")
             token
         } catch (e: Exception) {
-            Log.e(TAG, "РћС€РёР±РєР° Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ GigaChat: ${e.message}", e)
-            throw IllegalStateException("РћС€РёР±РєР° Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ GigaChat: ${e.message}", e)
+            Log.e(TAG, "Ошибка аутентификации GigaChat: ${e.message}", e)
+            throw IllegalStateException("Не удалось подключиться к GigaChat: ${e.message}", e)
         }
     }
     
