@@ -87,22 +87,26 @@ export default function DashboardPage() {
   }
 
   const cards = [
-    { label: 'Всего питомцев', value: stats?.totalPets ?? 0, icon: PawPrint, color: 'bg-primary-100 text-primary-600' },
+    { label: 'Всего питомцев', value: stats?.totalPets ?? 0, icon: PawPrint, color: 'bg-primary-100 text-primary-700' },
     { label: 'Активных', value: stats?.activePets ?? 0, icon: Cat, color: 'bg-emerald-100 text-emerald-600' },
-    { label: 'Всего заявок', value: stats?.totalApplications ?? 0, icon: ClipboardList, color: 'bg-blue-100 text-blue-600' },
+    { label: 'Всего заявок', value: stats?.totalApplications ?? 0, icon: ClipboardList, color: 'bg-secondary-100 text-secondary-700' },
     { label: 'Ожидают', value: stats?.pendingApplications ?? 0, icon: Clock, color: 'bg-amber-100 text-amber-600' },
-    { label: 'В работе', value: stats?.processingApplications ?? 0, icon: TrendingUp, color: 'bg-indigo-100 text-indigo-600' },
+    { label: 'В работе', value: stats?.processingApplications ?? 0, icon: TrendingUp, color: 'bg-primary-100 text-primary-700' },
     { label: 'Одобрено', value: stats?.approvedApplications ?? 0, icon: CheckCircle2, color: 'bg-green-100 text-green-600' },
     { label: 'Отклонено', value: stats?.rejectedApplications ?? 0, icon: XCircle, color: 'bg-red-100 text-red-600' },
   ]
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">Дашборд</h2>
+      <div className="mb-6">
+        <p className="text-sm font-semibold text-primary-700 mb-1">Хвостики</p>
+        <h2 className="text-2xl font-bold text-gray-900">Обзор приюта</h2>
+        <p className="text-sm text-gray-500 mt-1">Питомцы и заявки в одном рабочем пространстве</p>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-8">
         {cards.map((card) => (
-          <div key={card.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div key={card.label} className="bg-warm-50 rounded-xl p-5 shadow-sm border border-warm-200">
             <div className={`inline-flex w-10 h-10 items-center justify-center rounded-xl ${card.color} mb-3`}>
               <card.icon className="w-5 h-5" />
             </div>
@@ -112,16 +116,16 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+      <div className="bg-warm-50 rounded-xl p-6 shadow-sm border border-warm-200">
         <h3 className="text-lg font-semibold mb-4">Заявки по дням (последние 14 дней)</h3>
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#EDE6DB" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
               <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="count" fill="#6C63FF" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="count" fill="#2F7D6B" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

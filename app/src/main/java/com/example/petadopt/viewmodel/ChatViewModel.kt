@@ -8,6 +8,9 @@ import com.example.petadopt.data.model.SenderRole
 import com.example.petadopt.data.repository.AuthRepository
 import com.example.petadopt.data.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import android.util.Log
@@ -46,6 +49,7 @@ class ChatViewModel @Inject constructor(
     val state: StateFlow<ChatState> = _state.asStateFlow()
 
     private var applicationId: String? = null
+    private var autoRefreshJob: Job? = null
 
     init {
         loadCurrentUserId()
@@ -73,14 +77,63 @@ class ChatViewModel @Inject constructor(
      */
     fun loadMessages(appId: String) {
         applicationId = appId
-        
+
         viewModelScope.launch {
+            refreshMessages(appId, showLoading = true)
+        }
+    }
+
+    /**
+     * Запускает обновление входящих сообщений, пока открыт экран чата.
+     */
+    fun startAutoRefresh(appId: String) {
+        if (applicationId == appId && autoRefreshJob?.isActive == true) return
+
+        stopAutoRefresh()
+        applicationId = appId
+        autoRefreshJob = viewModelScope.launch {
+            refreshMessages(appId, showLoading = _state.value.messages.isEmpty())
+
+            while (isActive) {
+                delay(AUTO_REFRESH_INTERVAL_MS)
+                refreshMessages(appId, showLoading = false)
+            }
+        }
+    }
+
+    fun stopAutoRefresh() {
+        autoRefreshJob?.cancel()
+        autoRefreshJob = null
+    }
+
+    private suspend fun refreshMessages(appId: String, showLoading: Boolean) {
+        if (showLoading) {
             _state.update { it.copy(isLoading = true, error = null) }
-            
-            // Загружаем сообщения
-            val messages = chatRepository.getMessages(appId)
-            _state.update { it.copy(messages = messages, isLoading = false) }
-            Log.d(TAG, "Loaded ${messages.size} messages")
+        }
+
+        val result = chatRepository.getMessages(appId)
+        if (applicationId != appId) return
+
+        result.onSuccess { messages ->
+            _state.update { currentState ->
+                currentState.copy(
+                    messages = messages,
+                    isLoading = false
+                )
+            }
+            Log.d(TAG, "Loaded ${messages.size} messages, automatic=${!showLoading}")
+        }.onFailure { error ->
+            _state.update { currentState ->
+                currentState.copy(
+                    isLoading = false,
+                    error = if (showLoading) {
+                        error.message ?: "Не удалось загрузить сообщения"
+                    } else {
+                        currentState.error
+                    }
+                )
+            }
+            Log.e(TAG, "Error refreshing messages: ${error.message}", error)
         }
     }
 
@@ -102,10 +155,13 @@ class ChatViewModel @Inject constructor(
             val result = chatRepository.sendMessage(appId, messageText)
             
             result.onSuccess { message ->
-                // Добавляем сообщение в список сразу
                 _state.update { currentState ->
                     currentState.copy(
-                        messages = currentState.messages + message
+                        messages = if (currentState.messages.any { it.id == message.id }) {
+                            currentState.messages
+                        } else {
+                            currentState.messages + message
+                        }
                     )
                 }
                 Log.d(TAG, "Message sent successfully")
@@ -115,6 +171,11 @@ class ChatViewModel @Inject constructor(
                 Log.e(TAG, "Error sending message: ${error.message}", error)
             }
         }
+    }
+
+    override fun onCleared() {
+        stopAutoRefresh()
+        super.onCleared()
     }
 
     /**
@@ -212,5 +273,9 @@ class ChatViewModel @Inject constructor(
         val cal2 = Calendar.getInstance().apply { time = date2 }
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    private companion object {
+        const val AUTO_REFRESH_INTERVAL_MS = 5_000L
     }
 }

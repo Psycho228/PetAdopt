@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { Send, User } from 'lucide-react'
+import { Loader2, Send, User } from 'lucide-react'
 
 interface ChatMessage {
   id: string
@@ -21,13 +21,23 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadMessages()
-    
+
+    let pollingTimer: number | undefined
+    let disposed = false
+
+    const startPolling = () => {
+      if (pollingTimer || disposed) return
+      pollingTimer = window.setInterval(() => loadMessages(true), 5000)
+    }
+
     const channel = supabase.channel(`chat:${applicationId}`)
-    
+
     channel.on(
       'postgres_changes',
       {
@@ -38,17 +48,29 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
       },
       (payload) => {
         const newMsg = payload.new as ChatMessage
-        setMessages((prev) => [...prev, newMsg])
+        setMessages((prev) => (
+          prev.some((message) => message.id === newMsg.id)
+            ? prev
+            : [...prev, newMsg]
+        ))
       }
     )
-    
+
     channel.subscribe((status) => {
-      if (status !== 'SUBSCRIBED') {
-        console.error('Failed to subscribe:', status)
+      if (status === 'SUBSCRIBED') {
+        if (pollingTimer) {
+          window.clearInterval(pollingTimer)
+          pollingTimer = undefined
+        }
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Realtime недоступен, включено периодическое обновление')
+        startPolling()
       }
     })
 
     return () => {
+      disposed = true
+      if (pollingTimer) window.clearInterval(pollingTimer)
       supabase.removeChannel(channel)
     }
   }, [applicationId])
@@ -57,8 +79,8 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
     scrollToBottom()
   }, [messages])
 
-  async function loadMessages() {
-    setLoading(true)
+  async function loadMessages(silent = false) {
+    if (!silent) setLoading(true)
     const { data, error } = await supabase
       .from('chat_messages')
       .select('*')
@@ -68,22 +90,41 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
     if (!error && data) {
       setMessages(data)
     }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault()
-    if (!newMessage.trim()) return
+    const messageText = newMessage.trim()
+    if (!messageText || sending) return
 
-    const { error } = await supabase.from('chat_messages').insert({
-      application_id: applicationId,
-      sender_id: currentUserId,
-      message: newMessage.trim(),
-    })
+    setSending(true)
+    setSendError('')
 
-    if (!error) {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .insert({
+        application_id: applicationId,
+        sender_id: currentUserId,
+        message: messageText,
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Не удалось отправить сообщение:', error)
+      setSendError('Не удалось отправить сообщение. Попробуйте еще раз.')
+    } else if (data) {
+      const sentMessage = data as ChatMessage
+      setMessages((prev) => (
+        prev.some((message) => message.id === sentMessage.id)
+          ? prev
+          : [...prev, sentMessage]
+      ))
       setNewMessage('')
     }
+
+    setSending(false)
   }
 
   function scrollToBottom() {
@@ -121,16 +162,16 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
       case 'shelter':
         return 'bg-emerald-600'
       case 'admin':
-        return 'bg-purple-600'
+        return 'bg-secondary-500'
       default:
         return 'bg-gray-600'
     }
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className="bg-warm-50 rounded-xl shadow-sm border border-warm-200 overflow-hidden">
       {/* Header */}
-      <div className="bg-gradient-to-r from-primary-600 to-primary-700 px-4 py-3">
+      <div className="bg-primary-700 px-4 py-3">
         <div className="flex items-center gap-2 text-white">
           <User className="w-5 h-5" />
           <span className="font-semibold">Чат с заявителем</span>
@@ -138,7 +179,7 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
       </div>
 
       {/* Messages */}
-      <div className="h-96 overflow-y-auto p-4 bg-gray-50">
+      <div className="h-96 overflow-y-auto p-4 bg-warm-100">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin" />
@@ -205,7 +246,7 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
       {/* Input */}
       <form
         onSubmit={sendMessage}
-        className="border-t border-gray-100 p-4 bg-white"
+        className="border-t border-warm-200 p-4 bg-warm-50"
       >
         <div className="flex gap-2">
           <input
@@ -217,12 +258,18 @@ export default function Chat({ applicationId, currentUserId }: ChatProps) {
           />
           <button
             type="submit"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
+            aria-label="Отправить сообщение"
             className="bg-primary-600 hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white p-2.5 rounded-full transition"
           >
-            <Send className="w-5 h-5" />
+            {sending
+              ? <Loader2 className="w-5 h-5 animate-spin" />
+              : <Send className="w-5 h-5" />}
           </button>
         </div>
+        {sendError && (
+          <p className="mt-2 text-xs text-red-600" role="alert">{sendError}</p>
+        )}
       </form>
     </div>
   )

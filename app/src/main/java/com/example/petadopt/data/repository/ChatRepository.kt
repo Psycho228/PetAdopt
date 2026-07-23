@@ -22,7 +22,7 @@ class ChatRepository(
     /**
      * Получает список сообщений для заявки
      */
-    suspend fun getMessages(applicationId: String): List<ChatMessage> {
+    suspend fun getMessages(applicationId: String): Result<List<ChatMessage>> {
         return try {
             val result = postgrest.from(TABLE_CHAT_MESSAGES)
                 .select {
@@ -34,10 +34,10 @@ class ChatRepository(
                 .decodeList<ChatMessage>()
 
             Log.d(TAG, "Found ${result.size} messages for application $applicationId")
-            result
+            Result.success(result)
         } catch (e: Exception) {
             Log.e(TAG, "Error getting chat messages: ${e.message}", e)
-            emptyList()
+            Result.failure(e)
         }
     }
 

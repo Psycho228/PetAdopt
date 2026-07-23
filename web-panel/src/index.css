@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    color: #17231f;
+    background: #f7f3ec;
+    font-synthesis: none;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -10,6 +16,35 @@
 
   body {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: #f7f3ec;
+    color: #17231f;
+  }
+
+  ::selection {
+    background: #b1dccf;
+    color: #1f443c;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    outline-color: #2f7d6b;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: #fff;
+  }
+
+  :focus-visible {
+    outline: 3px solid rgb(47 125 107 / 25%);
+    outline-offset: 2px;
   }
 }
 
@@ -26,4 +61,24 @@
       transform: rotate(360deg);
     }
   }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #b1dccf #f7f3ec;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f7f3ec;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b1dccf;
+  border: 2px solid #f7f3ec;
+  border-radius: 8px;
 }

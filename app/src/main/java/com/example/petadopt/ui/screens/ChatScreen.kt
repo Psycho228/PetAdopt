@@ -48,9 +48,11 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val snackbarHostState = remember { SnackbarHostState() }
     
-    // Загружаем сообщения при первом композиции
-    LaunchedEffect(applicationId) {
-        viewModel.loadMessages(applicationId)
+    DisposableEffect(applicationId) {
+        viewModel.startAutoRefresh(applicationId)
+        onDispose {
+            viewModel.stopAutoRefresh()
+        }
     }
     
     // Автоматическая прокрутка к последнему сообщению
