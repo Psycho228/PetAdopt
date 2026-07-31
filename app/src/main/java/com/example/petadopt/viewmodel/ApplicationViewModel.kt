@@ -45,7 +45,7 @@ class ApplicationViewModel @Inject constructor(
         }
     }
 
-    private fun loadUserData() {
+    fun loadUserData() {
         viewModelScope.launch {
             try {
                 val user = authRepo.getUser()
@@ -60,6 +60,8 @@ class ApplicationViewModel @Inject constructor(
             }
         }
     }
+
+    fun isAuthenticated(): Boolean = authRepo.isLoggedIn
 
     fun setPetData(petId: String, petName: String) {
         _state.update { it.copy(petName = petName, petId = petId) }

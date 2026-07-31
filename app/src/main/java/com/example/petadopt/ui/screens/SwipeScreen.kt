@@ -70,6 +70,7 @@ fun SwipeScreen(
     onAccount: () -> Unit,
     onMarketplace: () -> Unit,
     onLogout: () -> Unit,
+    isAuthenticated: Boolean,
     viewModel: SwipeViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel()
 ) {
@@ -96,9 +97,8 @@ fun SwipeScreen(
             text = { Text("Текущая подборка сохранится, вы сможете вернуться позже.") },
             confirmButton = {
                 TextButton(onClick = {
-                    accountViewModel.logout()
                     showLogoutDialog = false
-                    onLogout()
+                    accountViewModel.logout(onLogout)
                 }) {
                     Text("Выйти", color = MaterialTheme.colorScheme.error)
                 }
@@ -124,7 +124,8 @@ fun SwipeScreen(
             onAccount = onAccount,
             onMatches = onMatches,
             onMarketplace = onMarketplace,
-            onLogout = { showLogoutDialog = true }
+            onLogout = { showLogoutDialog = true },
+            isAuthenticated = isAuthenticated
         )
 
         MatchHeader(remaining = remaining, total = pets.size)
@@ -175,7 +176,8 @@ private fun TopBar(
     onAccount: () -> Unit,
     onMatches: () -> Unit,
     onMarketplace: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    isAuthenticated: Boolean
 ) {
     Row(
         modifier = Modifier
@@ -237,12 +239,14 @@ private fun TopBar(
                     tint = Primary
                 )
             }
-            IconButton(onClick = onLogout) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
-                    contentDescription = "Выйти",
-                    tint = TextSecondary
-                )
+            if (isAuthenticated) {
+                IconButton(onClick = onLogout) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
+                        contentDescription = "Выйти",
+                        tint = TextSecondary
+                    )
+                }
             }
         }
     }

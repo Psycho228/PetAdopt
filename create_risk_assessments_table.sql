@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS risk_assessments (
     -- Результаты оценки
     "overallRisk" VARCHAR(50) NOT NULL,  -- LOW, MEDIUM, HIGH, VERY_HIGH
     "riskScore" INTEGER NOT NULL CHECK ("riskScore" >= 0 AND "riskScore" <= 100),
-    "recommendation" VARCHAR(50) NOT NULL,  -- APPROVE, APPROVE_WITH_CONDITIONS, REVIEW_REQUIRED, REJECT
+    "recommendation" TEXT NOT NULL,
     
     -- Данные для отображения
     "detailedAnalysis" TEXT NOT NULL,

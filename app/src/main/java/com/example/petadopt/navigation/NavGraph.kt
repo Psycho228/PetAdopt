@@ -1,5 +1,6 @@
 ﻿package com.example.petadopt.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -7,9 +8,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.petadopt.ui.screens.AccountScreen
 import com.example.petadopt.ui.screens.AuthScreen
 import com.example.petadopt.ui.screens.OnboardingScreen
@@ -39,21 +42,61 @@ import com.example.petadopt.viewmodel.QuestionnaireViewModel
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
+    val navViewModel: NavViewModel = hiltViewModel()
+
+    fun openAuth(returnTo: String = "loading", register: Boolean = false) {
+        navController.navigate(
+            "auth?returnTo=${Uri.encode(returnTo)}&register=$register"
+        )
+    }
+
+    fun openProtected(returnTo: String) {
+        if (navViewModel.isAuthenticated()) {
+            navController.navigate(returnTo)
+        } else {
+            openAuth(returnTo)
+        }
+    }
+
+    fun openAccount() = openProtected("account_entry")
 
     NavHost(navController, startDestination = "loading") {
 
-        composable("auth") {
-            AuthScreen(
-                onAuthSuccess = {
-                    navController.navigate("loading") {
-                        popUpTo("auth") { inclusive = true }
-                    }
+        composable(
+            route = "auth?returnTo={returnTo}&register={register}",
+            arguments = listOf(
+                navArgument("returnTo") {
+                    type = NavType.StringType
+                    defaultValue = "loading"
+                },
+                navArgument("register") {
+                    type = NavType.BoolType
+                    defaultValue = false
                 }
+            )
+        ) { backStackEntry ->
+            val returnTo = backStackEntry.arguments?.getString("returnTo") ?: "loading"
+            val register = backStackEntry.arguments?.getBoolean("register") ?: false
+            AuthScreen(
+                onAuthSuccess = { isNewAccount ->
+                    if (isNewAccount) {
+                        navController.navigate("questionnaire_after_registration")
+                    } else if (returnTo == "back") {
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(returnTo) {
+                            popUpTo(backStackEntry.destination.id) { inclusive = true }
+                        }
+                    }
+                },
+                initialIsRegister = register,
+                reason = if (register) {
+                    "Создайте аккаунт или войдите, чтобы отправить заявку в приют"
+                } else null
             )
         }
 
         composable("loading") { backStackEntry ->
-            val navViewModel: NavViewModel = hiltViewModel(backStackEntry)
             val destination by navViewModel.startDestination.collectAsState()
 
             LaunchedEffect(Unit) { navViewModel.checkQuestionnaire() }
@@ -105,7 +148,7 @@ fun NavGraph() {
         composable("onboarding") {
             OnboardingScreen(
                 onStart = { navController.navigate("questionnaire") },
-                onAccount = { navController.navigate("account") }
+                onAccount = { openAccount() }
             )
         }
 
@@ -124,12 +167,34 @@ fun NavGraph() {
         composable("swipe") {
             SwipeScreen(
                 onDetails = { petId -> navController.navigate("details/$petId") },
-                onMatches = { navController.navigate("matches") },
-                onAccount = { navController.navigate("account") },
+                onMatches = { openProtected("matches") },
+                onAccount = { openAccount() },
                 onMarketplace = { navController.navigate("marketplace") },
                 onLogout = {
-                    navController.navigate("auth") {
+                    navController.navigate("swipe") {
                         popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+                isAuthenticated = navViewModel.isAuthenticated()
+            )
+        }
+
+        composable("questionnaire_after_registration") {
+            QuestionnaireScreen(
+                onFinish = {
+                    val authEntry = navController.previousBackStackEntry
+                    val returnTo = authEntry?.arguments?.getString("returnTo") ?: "swipe"
+
+                    if (returnTo == "back") {
+                        navController.popBackStack()
+                        navController.popBackStack()
+                    } else {
+                        navController.navigate(returnTo) {
+                            authEntry?.let { entry ->
+                                popUpTo(entry.destination.id) { inclusive = true }
+                            }
+                        }
                     }
                 }
             )
@@ -138,9 +203,13 @@ fun NavGraph() {
         composable("details/{petId}") { backStackEntry ->
             val petId = backStackEntry.arguments?.getString("petId") ?: ""
             DetailsScreen(
-                navController = navController,
                 onBack = { navController.popBackStack() },
-                onAccount = { navController.navigate("account") },
+                onAccount = { openAccount() },
+                onApply = { pet ->
+                    navController.navigate(
+                        "application/${pet.id}/${Uri.encode(pet.name)}"
+                    )
+                },
                 petId = petId
             )
         }
@@ -148,8 +217,9 @@ fun NavGraph() {
         composable("application/{petId}/{petName}") { backStackEntry ->
             ApplicationScreen(
                 onSuccess = { navController.navigate("swipe") { popUpTo("swipe") { inclusive = false } } },
-                onAccount = { navController.navigate("account") },
-                onApplications = { navController.navigate("applications") }
+                onAccount = { openAccount() },
+                onApplications = { navController.navigate("applications") },
+                onAuthRequired = { openAuth(returnTo = "back", register = true) }
             )
         }
 
@@ -157,8 +227,22 @@ fun NavGraph() {
             MatchesScreen(
                 onPetClick = { petId -> navController.navigate("details/$petId") },
                 onBack = { navController.popBackStack() },
-                onAccount = { navController.navigate("account") }
+                onAccount = { openAccount() }
             )
+        }
+
+        composable("account_entry") {
+            LaunchedEffect(Unit) {
+                val route = navViewModel.getAccountRoute()
+                navController.navigate(route) {
+                    popUpTo("account_entry") { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         }
 
         composable("account") {
@@ -232,9 +316,13 @@ fun NavGraph() {
             val backStackEntry = it
             val petId = backStackEntry.arguments?.getString("petId") ?: ""
             DetailsScreen(
-                navController = navController,
                 onBack = { navController.popBackStack() },
-                onAccount = { navController.navigate("account") },
+                onAccount = { openAccount() },
+                onApply = { pet ->
+                    navController.navigate(
+                        "application/${pet.id}/${Uri.encode(pet.name)}"
+                    )
+                },
                 petId = petId
             )
         }

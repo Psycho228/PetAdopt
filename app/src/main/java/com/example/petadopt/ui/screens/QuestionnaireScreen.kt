@@ -145,6 +145,7 @@ fun QuestionnaireScreen(
     var showConfirmation by remember { mutableStateOf(false) }
     var showRiskAssessment by remember { mutableStateOf(false) }
     var riskAssessmentResult by remember { mutableStateOf<GigaChatRiskAssessment?>(null) }
+    var showAssessmentUnavailable by remember { mutableStateOf(false) }
     var isLoadingRisk by remember { mutableStateOf(false) }
     var currentErrors by remember { mutableStateOf<List<ValidationError>>(emptyList()) }
     var showErrorDialog by remember { mutableStateOf(false) }
@@ -291,6 +292,10 @@ fun QuestionnaireScreen(
                                 riskAssessmentResult = assessment
                                 showRiskAssessment = true
                             },
+                            onAssessmentUnavailable = {
+                                isLoadingRisk = false
+                                showAssessmentUnavailable = true
+                            },
                             onRiskAssessed = { result ->
                                 if (result.isFailure) {
                                     isLoadingRisk = false
@@ -335,6 +340,28 @@ fun QuestionnaireScreen(
     }
 
     // Индикатор загрузки оценки рисков
+    if (showAssessmentUnavailable) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Ответы сохранены") },
+            text = {
+                Text(
+                    "GigaChat временно не выполнил оценку рисков. " +
+                        "Это не мешает продолжить оформление заявки."
+                )
+            },
+            confirmButton = {
+                PrimaryButton(
+                    text = "Продолжить без оценки",
+                    onClick = {
+                        showAssessmentUnavailable = false
+                        onFinish(false)
+                    }
+                )
+            }
+        )
+    }
+
     if (isLoadingRisk) {
         AlertDialog(
             onDismissRequest = { },

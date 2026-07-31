@@ -200,12 +200,12 @@ fun AccountScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = when (record.recommendation.lowercase()) {
-                                    "approve", "рекомендуется одобрить" -> "✅ Рекомендуется одобрить"
-                                    "approve_with_conditions", "одобрить с условиями" -> "⚠️ Одобрить с условиями"
-                                    "review_required", "требуется дополнительная проверка" -> "🔍 Требуется дополнительная проверка"
-                                    "reject", "рекомендуется отклонить" -> "❌ Рекомендуется отклонить"
-                                    else -> "🔍 ${record.recommendation}"
+                                text = when (val recommendation = normalizeRecommendationText(record.recommendation)) {
+                                    "Рекомендуется одобрить" -> "✅ $recommendation"
+                                    "Одобрить с условиями" -> "⚠️ $recommendation"
+                                    "Требуется дополнительная проверка" -> "🔍 $recommendation"
+                                    "Рекомендуется отклонить" -> "❌ $recommendation"
+                                    else -> "🔍 $recommendation"
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,

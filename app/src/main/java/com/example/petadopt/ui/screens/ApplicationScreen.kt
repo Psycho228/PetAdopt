@@ -18,12 +18,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.*
 import com.example.petadopt.viewmodel.ApplicationViewModel
@@ -36,10 +39,20 @@ fun ApplicationScreen(
     onSuccess: () -> Unit,
     onAccount: () -> Unit,
     onApplications: () -> Unit,
+    onAuthRequired: () -> Unit,
     viewModel: ApplicationViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val scrollState = rememberScrollState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.loadUserData()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     
     var selectedMessage by remember { mutableStateOf("") }
     var showTimeDialog by remember { mutableStateOf(false) }
@@ -459,6 +472,10 @@ fun ApplicationScreen(
                     PrimaryButton(
                         text = "Отправить заявку",
                         onClick = {
+                            if (!viewModel.isAuthenticated()) {
+                                onAuthRequired()
+                                return@PrimaryButton
+                            }
                             val contactTime = "${selectedStartTime} — ${selectedEndTime}"
                             val daysText = selectedDays.joinToString(", ")
                             viewModel.submitApplication(

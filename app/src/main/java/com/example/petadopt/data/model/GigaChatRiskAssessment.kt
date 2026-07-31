@@ -2,6 +2,7 @@ package com.example.petadopt.data.model
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
+import java.nio.charset.Charset
 
 /**
  * Ответ от GigaChat с оценкой рисков пристройства питомца
@@ -68,13 +69,26 @@ val GigaChatRiskAssessment.riskLevelText: String
     }
 
 val GigaChatRiskAssessment.recommendationText: String
-    get() = when (recommendation.lowercase()) {
-        "approve", "можно одобрить", "рекомендуется одобрить" -> "Рекомендуется одобрить"
+    get() = normalizeRecommendationText(recommendation)
+
+fun normalizeRecommendationText(value: String): String {
+    val recommendation = decodeLegacyMojibake(value).trim()
+    return when (recommendation.lowercase()) {
+        "approve", "можно одобрить", "рекомендуется одобрить", "рекомендуется одобрить заявку" -> "Рекомендуется одобрить"
         "approve_with_conditions", "одобрить с условиями" -> "Одобрить с условиями"
         "review_required", "требуется дополнительная проверка" -> "Требуется дополнительная проверка"
-        "reject", "отклонить", "рекомендуется отклонить" -> "Рекомендуется отклонить"
-        else -> recommendation // Возвращаем как есть, если не распознано
+        "reject", "отклонить", "рекомендуется отклонить", "рекомендуется отклонить заявку" -> "Рекомендуется отклонить"
+        else -> recommendation
     }
+}
+
+private fun decodeLegacyMojibake(value: String): String {
+    val decoded = runCatching {
+        String(value.toByteArray(Charset.forName("windows-1251")), Charsets.UTF_8)
+    }.getOrNull()
+
+    return decoded?.takeIf { '\uFFFD' !in it } ?: value
+}
 
 val GigaChatRiskAssessment.riskColor: String
     get() = when (overallRisk) {

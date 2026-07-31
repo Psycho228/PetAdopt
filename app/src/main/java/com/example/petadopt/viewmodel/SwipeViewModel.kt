@@ -62,7 +62,15 @@ class SwipeViewModel @Inject constructor(
 
     fun loadLikedPets() {
         viewModelScope.launch {
-            val uid = getCurrentUserIdUseCase() ?: return@launch
+            val uid = getCurrentUserIdUseCase()
+            if (uid == null) {
+                _likedPets.value = emptyList()
+                _seenPetIds.clear()
+                _appliedPetIds.clear()
+                _pets.value = getPetsUseCase()
+                _currentIndex.value = 0
+                return@launch
+            }
             try {
                 val (liked, appliedIds) = kotlin.run {
                     val likedResult = getLikedPetsUseCase(uid)
@@ -108,7 +116,15 @@ class SwipeViewModel @Inject constructor(
     fun refreshPets() {
         viewModelScope.launch {
             try {
-                val uid = getCurrentUserIdUseCase() ?: return@launch
+                val uid = getCurrentUserIdUseCase()
+                if (uid == null) {
+                    _seenPetIds.clear()
+                    _appliedPetIds.clear()
+                    _likedPets.value = emptyList()
+                    _pets.value = getPetsUseCase()
+                    _currentIndex.value = 0
+                    return@launch
+                }
                 val (liked, appliedIds) = kotlin.run {
                     val likedResult = getLikedPetsUseCase(uid)
                     val appliedResult = getAppliedPetIdsUseCase(uid)
@@ -143,14 +159,16 @@ class SwipeViewModel @Inject constructor(
 
     fun likePet(pet: Pet) {
         _seenPetIds.add(pet.id)
-        val uid = getCurrentUserIdUseCase() ?: return
-        viewModelScope.launch {
-            try {
-                likePetUseCase(uid, pet.id)
-                _likedPets.update { current ->
-                    if (current.none { it.id == pet.id }) current + pet else current
-                }
-            } catch (_: Exception) { }
+        val uid = getCurrentUserIdUseCase()
+        _likedPets.update { current ->
+            if (current.none { it.id == pet.id }) current + pet else current
+        }
+        if (uid != null) {
+            viewModelScope.launch {
+                try {
+                    likePetUseCase(uid, pet.id)
+                } catch (_: Exception) { }
+            }
         }
         _pets.update { it.filter { p -> p.id != pet.id } }
         if (_pets.value.isEmpty()) {
@@ -168,13 +186,18 @@ class SwipeViewModel @Inject constructor(
     }
 
     fun removeLike(pet: Pet) {
-        val uid = getCurrentUserIdUseCase() ?: return
+        val uid = getCurrentUserIdUseCase()
+        _likedPets.update { current -> current.filter { it.id != pet.id } }
+        if (uid == null) {
+            _seenPetIds.remove(pet.id)
+            _pets.update { current ->
+                if (current.none { it.id == pet.id }) current + pet else current
+            }
+            return
+        }
         viewModelScope.launch {
             try {
                 unlikePetUseCase(uid, pet.id)
-                _likedPets.update { current ->
-                    current.filter { it.id != pet.id }
-                }
                 if (pet.id !in _appliedPetIds) {
                     _seenPetIds.remove(pet.id)
                     val allPets = getPetsUseCase()
@@ -190,8 +213,8 @@ class SwipeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val filtered = getPetsByTypeUseCase(type)
-                val uid = getCurrentUserIdUseCase() ?: return@launch
-                val appliedIds = getAppliedPetIdsUseCase(uid)
+                val uid = getCurrentUserIdUseCase()
+                val appliedIds = uid?.let { getAppliedPetIdsUseCase(it) }.orEmpty()
                 _pets.value = filtered.filter { it.id !in _seenPetIds && it.id !in appliedIds }
                 _currentIndex.value = 0
             } catch (_: Exception) { }
@@ -202,8 +225,8 @@ class SwipeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val results = searchPetsUseCase(query)
-                val uid = getCurrentUserIdUseCase() ?: return@launch
-                val appliedIds = getAppliedPetIdsUseCase(uid)
+                val uid = getCurrentUserIdUseCase()
+                val appliedIds = uid?.let { getAppliedPetIdsUseCase(it) }.orEmpty()
                 _pets.value = results.filter { it.id !in _seenPetIds && it.id !in appliedIds }
                 _currentIndex.value = 0
             } catch (_: Exception) { }
@@ -230,8 +253,8 @@ class SwipeViewModel @Inject constructor(
                     isVaccinated = isVaccinated,
                     isSterilized = isSterilized
                 )
-                val uid = getCurrentUserIdUseCase() ?: return@launch
-                val appliedIds = getAppliedPetIdsUseCase(uid)
+                val uid = getCurrentUserIdUseCase()
+                val appliedIds = uid?.let { getAppliedPetIdsUseCase(it) }.orEmpty()
                 _pets.value = filtered.filter { it.id !in _seenPetIds && it.id !in appliedIds }
                 _currentIndex.value = 0
             } catch (_: Exception) { }

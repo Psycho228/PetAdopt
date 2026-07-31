@@ -29,7 +29,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.petadopt.data.model.Pet
@@ -53,9 +52,9 @@ fun getAgeWord(age: Int): String {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailsScreen(
-    navController: NavHostController,
     onBack: () -> Unit,
     onAccount: () -> Unit,
+    onApply: (Pet) -> Unit,
     petId: String? = null,
     viewModel: SwipeViewModel = hiltViewModel()
 ) {
@@ -430,9 +429,7 @@ fun DetailsScreen(
                 // Основная кнопка - подать заявку
                 PrimaryButton(
                     text = "Подать заявку",
-                    onClick = {
-                        navController.navigate("application/${p.id}/${android.net.Uri.encode(p.name)}")
-                    },
+                    onClick = { onApply(p) },
                     modifier = Modifier.fillMaxWidth()
                 )
 

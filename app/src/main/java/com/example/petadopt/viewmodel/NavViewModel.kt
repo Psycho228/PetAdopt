@@ -35,6 +35,7 @@ class NavViewModel @Inject constructor(
     val startDestination: StateFlow<StartDestination> = _startDestination
 
     fun checkQuestionnaire() {
+        _startDestination.update { StartDestination.LOADING }
         viewModelScope.launch {
             // Ждем восстановления сессии (повторяем проверку несколько раз)
             repeat(5) { attempt ->
@@ -44,8 +45,8 @@ class NavViewModel @Inject constructor(
                     val userId = authRepository.currentUserId
                     
                     if (user == null || userId == null) {
-                        Log.d(TAG, "User not logged in. Attempt $attempt")
-                        _startDestination.update { StartDestination.AUTH }
+                        Log.d(TAG, "User not logged in. Opening guest catalog")
+                        _startDestination.update { StartDestination.SWIPE }
                         return@launch
                     }
                     
@@ -99,6 +100,22 @@ class NavViewModel @Inject constructor(
                 Log.e(TAG, "Final check error: ${e.message}")
                 _startDestination.update { StartDestination.QUESTIONNAIRE }
             }
+        }
+    }
+
+    fun isAuthenticated(): Boolean = authRepository.isLoggedIn
+
+    suspend fun getAccountRoute(): String {
+        return try {
+            val user = authRepository.getUser() ?: return "loading"
+            when {
+                user.isShelter() -> "shelter"
+                user.isBreeder() -> "breeder_cabinet"
+                else -> "account"
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to resolve account route: ${e.message}")
+            "loading"
         }
     }
 }

@@ -331,7 +331,22 @@ class GigaChatRepository @Inject constructor() {
         Log.d(TAG, "РћС‚РїСЂР°РІРєР° Р·Р°РїСЂРѕСЃР° Рє GigaChat API...")
         
         // РџС‹С‚Р°РµРјСЃСЏ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РјРѕРґРµР»Рё РїРѕ РїСЂРёРѕСЂРёС‚РµС‚Сѓ (РѕС‚ Р»СѓС‡С€РµР№ Рє Р±Р°Р·РѕРІРѕР№)
-        val modelsToTry = listOf("GigaChat-2", "GigaChat", "GigaChat", "GigaChat")
+        val preferredModels = listOf(
+            "GigaChat-2",
+            "GigaChat-2-Pro",
+            "GigaChat-2-Max",
+            "GigaChat"
+        )
+        val availableModels = getAvailableModels(jwtToken)
+            .filter { it.startsWith("GigaChat", ignoreCase = true) }
+            .distinct()
+        val modelsToTry = if (availableModels.isEmpty()) {
+            preferredModels
+        } else {
+            preferredModels.filter { it in availableModels } +
+                availableModels.filterNot { it in preferredModels }
+        }
+        val failures = mutableListOf<String>()
         val json = Json { isLenient = true; ignoreUnknownKeys = true }
         
         for (model in modelsToTry) {
@@ -371,14 +386,19 @@ class GigaChatRepository @Inject constructor() {
                 } else {
                     Log.e(TAG, "РќРµ СѓРґР°Р»РѕСЃСЊ РёР·РІР»РµС‡СЊ content РёР· РѕС‚РІРµС‚Р°")
                     Log.e(TAG, "РџРѕР»РЅС‹Р№ РѕС‚РІРµС‚: $responseBody")
+                    failures += "$model: response does not contain choices.message.content"
                 }
             } else {
                 val errorBody = response.body<String>()
                 Log.w(TAG, "РњРѕРґРµР»СЊ $model РЅРµ РїРѕРґРѕС€Р»Р°: ${response.status} - $errorBody")
+                failures += "$model: HTTP ${response.status.value} ${errorBody.take(300)}"
             }
         }
-        
-        throw IllegalStateException("РќРё РѕРґРЅР° РёР· РјРѕРґРµР»РµР№ РЅРµ СЂР°Р±РѕС‚Р°Р»Р°. РџСЂРѕРІРµСЂСЊС‚Рµ РґРѕСЃС‚СѓРї Рє GigaChat API.")
+
+        val details = failures.joinToString(separator = "; ").ifBlank {
+            "API did not return any available chat models"
+        }
+        throw IllegalStateException("GigaChat risk assessment failed: $details")
     }
     
     private suspend fun getAvailableModels(jwtToken: String): List<String> {
@@ -434,8 +454,6 @@ class GigaChatRepository @Inject constructor() {
         
         // РќРѕСЂРјР°Р»РёР·СѓРµРј РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ severity РѕС‚ GigaChat
         jsonStr = normalizeSeverityValues(jsonStr)
-        // РќРѕСЂРјР°Р»РёР·СѓРµРј РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ recommendation РІ РјР°СЃСЃРёРІРµ recommendations
-        jsonStr = normalizeRecommendationValues(jsonStr)
         
         return try {
             val assessment = Json.decodeFromString<GigaChatRiskAssessment>(jsonStr)
@@ -476,29 +494,6 @@ class GigaChatRepository @Inject constructor() {
     }
     
     /**
-     * РќРѕСЂРјР°Р»РёР·СѓРµС‚ РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ recommendation РІ РјР°СЃСЃРёРІРµ recommendations
-     * GigaChat РјРѕР¶РµС‚ РІРѕР·РІСЂР°С‰Р°С‚СЊ "REJECT" РєР°Рє СЌР»РµРјРµРЅС‚ РјР°СЃСЃРёРІР° РІРјРµСЃС‚Рѕ С‚РµРєСЃС‚РѕРІРѕР№ СЂРµРєРѕРјРµРЅРґР°С†РёРё
-     */
-    private fun normalizeRecommendationValues(json: String): String {
-        val recommendationCodes = listOf("REJECT", "APPROVE", "APPROVE_WITH_CONDITIONS", "REVIEW_REQUIRED")
-        val recommendationDescriptions = mapOf(
-            "REJECT" to "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕС‚РєР»РѕРЅРёС‚СЊ Р·Р°СЏРІРєСѓ",
-            "APPROVE" to "Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ РѕРґРѕР±СЂРёС‚СЊ Р·Р°СЏРІРєСѓ",
-            "APPROVE_WITH_CONDITIONS" to "РћРґРѕР±СЂРёС‚СЊ СЃ СѓСЃР»РѕРІРёСЏРјРё",
-            "REVIEW_REQUIRED" to "РўСЂРµР±СѓРµС‚СЃСЏ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРІРµСЂРєР°"
-        )
-        
-        var result = json
-        for (code in recommendationCodes) {
-            // Р—Р°РјРµРЅСЏРµРј РєРѕРґ СЂРµРєРѕРјРµРЅРґР°С†РёРё РІ РјР°СЃСЃРёРІРµ recommendations РЅР° С‚РµРєСЃС‚РѕРІРѕРµ РѕРїРёСЃР°РЅРёРµ
-            // РС‰РµРј С€Р°Р±Р»РѕРЅ: "REJECT" (РІРЅСѓС‚СЂРё РјР°СЃСЃРёРІР° recommendations)
-            val description = recommendationDescriptions[code] ?: code
-            result = result.replace("\"$code\"", "\"$description\"")
-        }
-        return result
-    }
-    
-    /**
      * РЎРѕР·РґР°С‘С‚ РѕС†РµРЅРєСѓ СЂРёСЃРєРѕРІ РїСЂРё РѕС€РёР±РєРµ РїР°СЂСЃРёРЅРіР°
      */
     private fun createFallbackAssessment(rawResponse: String): GigaChatRiskAssessment {
@@ -506,10 +501,10 @@ class GigaChatRepository @Inject constructor() {
             overallRisk = RiskLevel.MEDIUM,
             riskScore = 50,
             riskFactors = emptyList(),
-            positiveFactors = listOf("РљР°РЅРґРёРґР°С‚ РїСЂРѕС€С‘Р» РѕРїСЂРѕСЃРЅРёРє"),
-            recommendations = listOf("РџСЂРѕРІРµСЃС‚Рё Р»РёС‡РЅСѓСЋ РІСЃС‚СЂРµС‡Сѓ РґР»СЏ СѓС‚РѕС‡РЅРµРЅРёСЏ РґРµС‚Р°Р»РµР№"),
+            positiveFactors = listOf("Кандидат прошёл опросник"),
+            recommendations = listOf("Провести личную встречу для уточнения деталей"),
             detailedAnalysis = rawResponse.take(500),
-            recommendation = "РўСЂРµР±СѓРµС‚СЃСЏ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅР°СЏ РїСЂРѕРІРµСЂРєР°"
+            recommendation = "REVIEW_REQUIRED"
         )
     }
 }

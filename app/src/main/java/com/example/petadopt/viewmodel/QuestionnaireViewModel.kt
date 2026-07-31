@@ -265,6 +265,7 @@ class QuestionnaireViewModel @Inject constructor(
      */
     fun saveWithRiskAssessment(
         onSuccess: (GigaChatRiskAssessment) -> Unit,
+        onAssessmentUnavailable: () -> Unit,
         onRiskAssessed: (Result<GigaChatRiskAssessment>) -> Unit
     ) {
         viewModelScope.launch {
@@ -382,7 +383,15 @@ class QuestionnaireViewModel @Inject constructor(
                     )
                     
                     Log.d(TAG, "3. Сохранение оценки рисков в БД...")
-                    repository.saveRiskAssessment(assessmentRecord)
+                    try {
+                        repository.saveRiskAssessment(assessmentRecord)
+                    } catch (error: Exception) {
+                        Log.e(TAG, "Опросник сохранён, но оценка рисков не записана", error)
+                        _state.value = _state.value.copy(isLoading = false, error = null)
+                        onAssessmentUnavailable()
+                        onRiskAssessed(Result.failure(error))
+                        return@onSuccess
+                    }
                     Log.d(TAG, "Оценка рисков сохранена в БД успешно!")
                     
                     _state.value = _state.value.copy(isLoading = false)
@@ -392,8 +401,9 @@ class QuestionnaireViewModel @Inject constructor(
                     Log.e(TAG, "Ошибка оценки рисков: ${error.message}", error)
                     _state.value = _state.value.copy(
                         isLoading = false,
-                        error = "Ошибка оценки рисков: ${error.message}"
+                        error = null
                     )
+                    onAssessmentUnavailable()
                     onRiskAssessed(Result.failure(error))
                 }
                 

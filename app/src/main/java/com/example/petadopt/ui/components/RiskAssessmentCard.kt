@@ -28,6 +28,7 @@ fun RiskAssessmentCard(
     onDismiss: (() -> Unit)? = null
 ) {
     val riskColor = getRiskColor(assessment.overallRisk)
+    val recommendationText = assessment.recommendationText
     
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -79,10 +80,10 @@ fun RiskAssessmentCard(
             
             // Рекомендация
             Surface(
-                color = when (assessment.recommendation.lowercase()) {
-                    "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFFFEBEE)
-                    "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFFF3E0)
-                    "approve", "рекомендуется одобрить" -> Color(0xFFF1F8E9)
+                color = when (recommendationText) {
+                    "Рекомендуется отклонить", "Требуется дополнительная проверка" -> Color(0xFFFFEBEE)
+                    "Одобрить с условиями" -> Color(0xFFFFF3E0)
+                    "Рекомендуется одобрить" -> Color(0xFFF1F8E9)
                     else -> Color(0xFFFFEBEE)
                 },
                 shape = RoundedCornerShape(8.dp),
@@ -90,23 +91,23 @@ fun RiskAssessmentCard(
                     .fillMaxWidth()
                     .border(
                         1.dp,
-                        when (assessment.recommendation.lowercase()) {
-                            "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFD32F2F)
-                            "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFF9800)
-                            "approve", "рекомендуется одобрить" -> Color(0xFF4CAF50)
+                        when (recommendationText) {
+                            "Рекомендуется отклонить", "Требуется дополнительная проверка" -> Color(0xFFD32F2F)
+                            "Одобрить с условиями" -> Color(0xFFFF9800)
+                            "Рекомендуется одобрить" -> Color(0xFF4CAF50)
                             else -> Color(0xFFD32F2F)
                         },
                         RoundedCornerShape(8.dp)
                     )
             ) {
                 Text(
-                    text = assessment.recommendationText,
+                    text = recommendationText,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = when (assessment.recommendation.lowercase()) {
-                        "reject", "требуется дополнительная проверка", "review_required" -> Color(0xFFB71C1C)
-                        "approve_with_conditions", "одобрить с условиями" -> Color(0xFFFF6F00)
-                        "approve", "рекомендуется одобрить" -> Color(0xFF2E7D32)
+                    color = when (recommendationText) {
+                        "Рекомендуется отклонить", "Требуется дополнительная проверка" -> Color(0xFFB71C1C)
+                        "Одобрить с условиями" -> Color(0xFFFF6F00)
+                        "Рекомендуется одобрить" -> Color(0xFF2E7D32)
                         else -> Color(0xFFB71C1C)
                     },
                     modifier = Modifier.padding(12.dp)

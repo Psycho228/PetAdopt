@@ -20,11 +20,13 @@ import com.example.petadopt.viewmodel.AuthViewModel
 
 @Composable
 fun AuthScreen(
-    onAuthSuccess: () -> Unit,
+    onAuthSuccess: (isNewAccount: Boolean) -> Unit,
+    initialIsRegister: Boolean = false,
+    reason: String? = null,
     viewModel: AuthViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-    var isRegister by remember { mutableStateOf(false) }
+    var isRegister by remember(initialIsRegister) { mutableStateOf(initialIsRegister) }
     var passwordVisible by remember { mutableStateOf(false) }
 
     Screen {
@@ -38,7 +40,7 @@ fun AuthScreen(
         Spacer(Modifier.height(8.dp))
 
         Text(
-            text = if (isRegister) "Зарегистрируйтесь чтобы найти питомца"
+            text = reason ?: if (isRegister) "Зарегистрируйтесь, чтобы найти питомца"
             else "Войдите в свой аккаунт",
             color = TextSecondary,
             style = MaterialTheme.typography.bodyMedium
@@ -128,8 +130,11 @@ fun AuthScreen(
             PrimaryButton(
                 text = if (isRegister) "Зарегистрироваться" else "Войти",
                 onClick = {
-                    if (isRegister) viewModel.register(onAuthSuccess)
-                    else viewModel.login(onAuthSuccess)
+                    if (isRegister) {
+                        viewModel.register { onAuthSuccess(true) }
+                    } else {
+                        viewModel.login { onAuthSuccess(false) }
+                    }
                 }
             )
         }

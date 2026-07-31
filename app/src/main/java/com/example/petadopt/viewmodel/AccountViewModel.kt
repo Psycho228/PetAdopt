@@ -96,9 +96,10 @@ class AccountViewModel @Inject constructor(
         _state.value = _state.value.copy(error = null)
     }
 
-    fun logout() {
+    fun logout(onComplete: () -> Unit = {}) {
         viewModelScope.launch {
             logoutUseCase()
+            onComplete()
         }
     }
 }
