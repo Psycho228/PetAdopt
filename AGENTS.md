@@ -1,7 +1,7 @@
 # PetAdopt - Agent Guide
 
 ## Stack
-- **Kotlin 1.9.24**, Android Gradle Plugin from `gradle/libs.versions.toml`, compileSdk 34, minSdk 24
+- **Kotlin 2.1.20**, Android Gradle Plugin from `gradle/libs.versions.toml`, compileSdk 34, minSdk 24
 - **Jetpack Compose** with Material 3, **Navigation Compose**, **Coil** for images
 - **Supabase** via `supabase-kt`: Auth, PostgREST, Storage
 - **Ktor** with OkHttp for Supabase/GigaChat HTTP clients

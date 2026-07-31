@@ -7,6 +7,7 @@ import {
   LogOut,
   Menu,
   X,
+  BadgeCheck,
 } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 
@@ -14,6 +15,10 @@ const navItems = [
   { to: '/', label: 'Дашборд', icon: LayoutDashboard },
   { to: '/pets', label: 'Питомцы', icon: PawPrint },
   { to: '/applications', label: 'Заявки', icon: ClipboardList },
+]
+
+const adminNavItems = [
+  { to: '/breeders', label: 'Заводчики', icon: BadgeCheck },
 ]
 
 export default function Layout() {
@@ -46,6 +51,22 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  isActive
+                    ? 'bg-primary-100 text-primary-800'
+                    : 'text-gray-600 hover:bg-warm-200/70 hover:text-gray-900'
+                }`
+              }
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </NavLink>
+          ))}
+          {user?.role === 'admin' && adminNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
@@ -104,6 +125,23 @@ export default function Layout() {
                 key={item.to}
                 to={item.to}
                 end={item.to === '/'}
+                onClick={() => setMobileOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${
+                    isActive
+                      ? 'bg-primary-100 text-primary-800'
+                      : 'text-gray-600 hover:bg-warm-200'
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </NavLink>
+            ))}
+            {user?.role === 'admin' && adminNavItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
                 onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition ${

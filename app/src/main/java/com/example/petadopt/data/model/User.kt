@@ -10,7 +10,7 @@ data class User(
     val phone: String? = null,
     val city: String? = null,
     val avatar_url: String? = null,
-    val role: String = "user", // "user", "shelter", "admin"
+    val role: String = "user", // "user", "shelter", "breeder", "admin"
     val created_at: String? = null,
     val updated_at: String? = null
 ) {
@@ -21,10 +21,12 @@ data class User(
     companion object {
         const val ROLE_USER = "user"
         const val ROLE_SHELTER = "shelter"
+        const val ROLE_BREEDER = "breeder"
         const val ROLE_ADMIN = "admin"
     }
 
     fun isAdmin(): Boolean = role == ROLE_ADMIN
     fun isShelter(): Boolean = role == ROLE_SHELTER || role == ROLE_ADMIN
+    fun isBreeder(): Boolean = role == ROLE_BREEDER
     fun canManagePets(): Boolean = isShelter() || isAdmin()
 }

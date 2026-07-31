@@ -26,6 +26,10 @@ import com.example.petadopt.ui.screens.PetApplicationsScreen
 import com.example.petadopt.ui.screens.PetApplicationDetailScreen
 import com.example.petadopt.ui.screens.ChatScreen
 import com.example.petadopt.ui.screens.ApplicationDetailWithChatScreen
+import com.example.petadopt.ui.screens.BreederCabinetScreen
+import com.example.petadopt.ui.screens.MarketplaceScreen
+import com.example.petadopt.ui.screens.SaleListingDetailScreen
+import com.example.petadopt.ui.screens.SaleListingFormScreen
 import com.example.petadopt.viewmodel.NavViewModel
 import com.example.petadopt.viewmodel.StartDestination
 import com.example.petadopt.viewmodel.SwipeViewModel
@@ -88,6 +92,13 @@ fun NavGraph() {
                         }
                     }
                 }
+                StartDestination.BREEDER -> {
+                    LaunchedEffect(Unit) {
+                        navController.navigate("breeder_cabinet") {
+                            popUpTo("loading") { inclusive = true }
+                        }
+                    }
+                }
             }
         }
 
@@ -115,6 +126,7 @@ fun NavGraph() {
                 onDetails = { petId -> navController.navigate("details/$petId") },
                 onMatches = { navController.navigate("matches") },
                 onAccount = { navController.navigate("account") },
+                onMarketplace = { navController.navigate("marketplace") },
                 onLogout = {
                     navController.navigate("auth") {
                         popUpTo(0) { inclusive = true }
@@ -155,7 +167,49 @@ fun NavGraph() {
                 onApplications = { navController.navigate("applications") },
                 onEditProfile = { navController.navigate("edit_profile") },
                 onRetakeQuestionnaire = { navController.navigate("questionnaire") },
-                onAdminPanel = { navController.navigate("shelter") }
+                onAdminPanel = { navController.navigate("shelter") },
+                onMarketplace = { navController.navigate("marketplace") }
+            )
+        }
+
+        composable("marketplace") {
+            MarketplaceScreen(
+                onBack = { navController.popBackStack() },
+                onListingClick = { listingId ->
+                    navController.navigate("marketplace/$listingId")
+                },
+                onCabinet = { navController.navigate("breeder_cabinet") }
+            )
+        }
+
+        composable("marketplace/{listingId}") { backStackEntry ->
+            SaleListingDetailScreen(
+                listingId = backStackEntry.arguments?.getString("listingId").orEmpty(),
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("breeder_cabinet") {
+            BreederCabinetScreen(
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate("marketplace")
+                    }
+                },
+                onAddListing = { navController.navigate("breeder_listing/new") },
+                onEditListing = { listingId ->
+                    navController.navigate("breeder_listing/$listingId")
+                }
+            )
+        }
+
+        composable("breeder_listing/{listingId}") { backStackEntry ->
+            val listingId = backStackEntry.arguments?.getString("listingId")
+                ?.takeUnless { it == "new" }
+            SaleListingFormScreen(
+                listingId = listingId,
+                onBack = { navController.popBackStack() },
+                onSaved = { navController.popBackStack() }
             )
         }
 

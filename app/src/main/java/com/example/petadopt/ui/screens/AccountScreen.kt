@@ -24,6 +24,7 @@ import com.example.petadopt.data.model.*
 import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
+import com.example.petadopt.ui.theme.Secondary
 import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.AccountViewModel
 
@@ -35,6 +36,7 @@ fun AccountScreen(
     onEditProfile: () -> Unit,
     onRetakeQuestionnaire: () -> Unit,
     onAdminPanel: () -> Unit = {},
+    onMarketplace: () -> Unit = {},
     viewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -82,6 +84,10 @@ fun AccountScreen(
 
                 // Секция "Мои заявки"
                 ApplicationsSection(onClick = onApplications)
+
+                Spacer(Modifier.height(16.dp))
+
+                MarketplaceAccountSection(onClick = onMarketplace)
 
                 Spacer(Modifier.height(16.dp))
 
@@ -338,6 +344,53 @@ private fun ApplicationsSection(onClick: () -> Unit) {
                 contentDescription = null,
                 tint = TextSecondary
             )
+        }
+    }
+}
+
+@Composable
+private fun MarketplaceAccountSection(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Secondary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Storefront,
+                    contentDescription = null,
+                    tint = Secondary
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "От заводчиков",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "Объявления и кабинет заводчика",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Icon(Icons.Default.ArrowForward, contentDescription = null, tint = TextSecondary)
         }
     }
 }

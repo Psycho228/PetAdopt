@@ -134,6 +134,54 @@ export interface Shelter {
   created_at?: string
 }
 
+export type BreederVerificationStatus = 'pending' | 'verified' | 'rejected'
+export type SaleListingStatus =
+  | 'draft'
+  | 'pending'
+  | 'available'
+  | 'reserved'
+  | 'sold'
+  | 'rejected'
+  | 'archived'
+
+export interface BreederProfile {
+  id: string
+  user_id: string
+  kennel_name: string
+  description: string
+  city: string
+  phone: string
+  website?: string
+  breeds: string[]
+  verification_status: BreederVerificationStatus
+  moderation_note?: string
+  created_at?: string
+}
+
+export interface SaleListing {
+  id: string
+  breeder_id: string
+  owner_id: string
+  name: string
+  type: PetType
+  gender: PetGender
+  breed: string
+  birth_date?: string
+  price: number
+  currency: 'RUB'
+  description: string
+  photo_url: string
+  additional_photos: string[]
+  vaccinated: boolean
+  vet_passport: boolean
+  pedigree: boolean
+  chipped: boolean
+  delivery_available: boolean
+  status: SaleListingStatus
+  moderation_note?: string
+  created_at?: string
+}
+
 // Derived types for UI
 export interface RiskFactor {
   title: string

@@ -8,6 +8,7 @@ import PetsPage from './pages/PetsPage'
 import PetFormPage from './pages/PetFormPage'
 import ApplicationsPage from './pages/ApplicationsPage'
 import ApplicationDetailPage from './pages/ApplicationDetailPage'
+import BreederModerationPage from './pages/BreederModerationPage'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -47,6 +48,7 @@ function AppRoutes() {
         <Route path="pets/:id" element={<PetFormPage />} />
         <Route path="applications" element={<ApplicationsPage />} />
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
+        <Route path="breeders" element={<BreederModerationPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

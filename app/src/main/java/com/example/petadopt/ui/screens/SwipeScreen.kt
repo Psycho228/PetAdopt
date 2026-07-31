@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ExitToApp
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Pets
 import androidx.compose.material.icons.outlined.Refresh
@@ -67,6 +68,7 @@ fun SwipeScreen(
     onDetails: (String) -> Unit,
     onMatches: () -> Unit,
     onAccount: () -> Unit,
+    onMarketplace: () -> Unit,
     onLogout: () -> Unit,
     viewModel: SwipeViewModel = hiltViewModel(),
     accountViewModel: AccountViewModel = hiltViewModel()
@@ -121,6 +123,7 @@ fun SwipeScreen(
         TopBar(
             onAccount = onAccount,
             onMatches = onMatches,
+            onMarketplace = onMarketplace,
             onLogout = { showLogoutDialog = true }
         )
 
@@ -171,6 +174,7 @@ fun SwipeScreen(
 private fun TopBar(
     onAccount: () -> Unit,
     onMatches: () -> Unit,
+    onMarketplace: () -> Unit,
     onLogout: () -> Unit
 ) {
     Row(
@@ -212,6 +216,13 @@ private fun TopBar(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            IconButton(onClick = onMarketplace) {
+                Icon(
+                    imageVector = Icons.Default.Storefront,
+                    contentDescription = "От заводчиков",
+                    tint = Primary
+                )
+            }
             IconButton(onClick = onMatches) {
                 Icon(
                     imageVector = Icons.Default.Favorite,

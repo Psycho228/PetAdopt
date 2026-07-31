@@ -2,6 +2,7 @@ package com.example.petadopt.di
 
 import com.example.petadopt.data.repository.AdminRepository
 import com.example.petadopt.data.repository.AuthRepository
+import com.example.petadopt.data.repository.BreederMarketplaceRepository
 import com.example.petadopt.data.repository.ChatRepository
 import com.example.petadopt.data.repository.GigaChatRepository
 import com.example.petadopt.data.repository.PetRepository
@@ -9,6 +10,7 @@ import com.example.petadopt.data.repository.QuestionnaireRepository
 import com.example.petadopt.data.repository.StorageRepository
 import com.example.petadopt.data.repository.S3StorageRepository
 import com.example.petadopt.data.repository.SupabaseAuthRepository
+import com.example.petadopt.data.repository.SupabaseBreederMarketplaceRepository
 import com.example.petadopt.data.repository.SupabasePetRepository
 import com.example.petadopt.data.repository.SupabaseQuestionnaireRepository
 import com.example.petadopt.domain.usecase.GetRiskAssessmentUseCase
@@ -39,6 +41,12 @@ object RepositoryModule {
     ): PetRepository {
         return petRepository
     }
+
+    @Provides
+    @Singleton
+    fun provideBreederMarketplaceRepository(
+        repository: SupabaseBreederMarketplaceRepository
+    ): BreederMarketplaceRepository = repository
 
     @Provides
     @Singleton

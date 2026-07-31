@@ -21,7 +21,8 @@ enum class StartDestination {
     AUTH,
     QUESTIONNAIRE,
     SWIPE,
-    SHELTER
+    SHELTER,
+    BREEDER
 }
 
 @HiltViewModel
@@ -50,11 +51,18 @@ class NavViewModel @Inject constructor(
                     
                     // Проверяем роль пользователя
                     val isShelterOrAdmin = user.role == User.ROLE_SHELTER || user.role == User.ROLE_ADMIN
+                    val isBreeder = user.role == User.ROLE_BREEDER
                     
                     if (isShelterOrAdmin) {
                         // Приюты и админы не проходят опросник, идут в shelter screen
                         Log.d(TAG, "User is shelter/admin. Going to SHELTER")
                         _startDestination.update { StartDestination.SHELTER }
+                        return@launch
+                    }
+
+                    if (isBreeder) {
+                        Log.d(TAG, "User is breeder. Going to BREEDER")
+                        _startDestination.update { StartDestination.BREEDER }
                         return@launch
                     }
                     
@@ -74,10 +82,14 @@ class NavViewModel @Inject constructor(
             try {
                 val user = authRepository.getUser()
                 val isShelterOrAdmin = user?.role == User.ROLE_SHELTER || user?.role == User.ROLE_ADMIN
+                val isBreeder = user?.role == User.ROLE_BREEDER
                 
                 if (isShelterOrAdmin) {
                     Log.d(TAG, "User is shelter/admin (final check). Going to SHELTER")
                     _startDestination.update { StartDestination.SHELTER }
+                } else if (isBreeder) {
+                    Log.d(TAG, "User is breeder (final check). Going to BREEDER")
+                    _startDestination.update { StartDestination.BREEDER }
                 } else {
                     // Если не удалось получить данные - показываем опросник
                     Log.d(TAG, "No questionnaire found. Going to QUESTIONNAIRE")
