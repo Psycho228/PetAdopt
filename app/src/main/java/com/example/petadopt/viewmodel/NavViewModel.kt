@@ -4,8 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Log
 import com.example.petadopt.data.model.User
-import com.example.petadopt.data.repository.QuestionnaireRepository
 import com.example.petadopt.data.repository.AuthRepository
+import com.example.petadopt.data.repository.BreederMarketplaceRepository
+import com.example.petadopt.data.repository.QuestionnaireRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ enum class StartDestination {
 @HiltViewModel
 class NavViewModel @Inject constructor(
     private val repo: QuestionnaireRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val breederRepository: BreederMarketplaceRepository
 ) : ViewModel() {
 
     private val _startDestination = MutableStateFlow(StartDestination.LOADING)
@@ -52,8 +54,6 @@ class NavViewModel @Inject constructor(
                     
                     // Проверяем роль пользователя
                     val isShelterOrAdmin = user.role == User.ROLE_SHELTER || user.role == User.ROLE_ADMIN
-                    val isBreeder = user.role == User.ROLE_BREEDER
-                    
                     if (isShelterOrAdmin) {
                         // Приюты и админы не проходят опросник, идут в shelter screen
                         Log.d(TAG, "User is shelter/admin. Going to SHELTER")
@@ -61,7 +61,7 @@ class NavViewModel @Inject constructor(
                         return@launch
                     }
 
-                    if (isBreeder) {
+                    if (isBreederAccount(user)) {
                         Log.d(TAG, "User is breeder. Going to BREEDER")
                         _startDestination.update { StartDestination.BREEDER }
                         return@launch
@@ -83,7 +83,7 @@ class NavViewModel @Inject constructor(
             try {
                 val user = authRepository.getUser()
                 val isShelterOrAdmin = user?.role == User.ROLE_SHELTER || user?.role == User.ROLE_ADMIN
-                val isBreeder = user?.role == User.ROLE_BREEDER
+                val isBreeder = user != null && !isShelterOrAdmin && isBreederAccount(user)
                 
                 if (isShelterOrAdmin) {
                     Log.d(TAG, "User is shelter/admin (final check). Going to SHELTER")
@@ -110,12 +110,22 @@ class NavViewModel @Inject constructor(
             val user = authRepository.getUser() ?: return "loading"
             when {
                 user.isShelter() -> "shelter"
-                user.isBreeder() -> "breeder_cabinet"
+                isBreederAccount(user) -> "breeder_cabinet"
                 else -> "account"
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to resolve account route: ${e.message}")
             "loading"
         }
+    }
+
+    private suspend fun isBreederAccount(user: User): Boolean {
+        if (user.isBreeder()) return true
+
+        return runCatching { breederRepository.getMyProfile() != null }
+            .onFailure { error ->
+                Log.w(TAG, "Failed to check breeder profile: ${error.message}")
+            }
+            .getOrDefault(false)
     }
 }

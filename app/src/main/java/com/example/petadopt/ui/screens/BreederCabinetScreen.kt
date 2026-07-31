@@ -12,10 +12,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,18 +53,21 @@ import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.Background
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
+import com.example.petadopt.viewmodel.AccountViewModel
 import com.example.petadopt.viewmodel.MarketplaceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BreederCabinetScreen(
-    onBack: () -> Unit,
+    onLogout: () -> Unit,
     onAddListing: () -> Unit,
     onEditListing: (String) -> Unit,
-    viewModel: MarketplaceViewModel = hiltViewModel()
+    viewModel: MarketplaceViewModel = hiltViewModel(),
+    accountViewModel: AccountViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     var editingProfile by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { viewModel.loadCabinet() }
     LaunchedEffect(state.saved) {
@@ -85,9 +91,12 @@ fun BreederCabinetScreen(
                         )
                     }
                 },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                actions = {
+                    IconButton(onClick = { showLogoutDialog = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                            contentDescription = "Выйти"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Background)
@@ -179,6 +188,39 @@ fun BreederCabinetScreen(
             }
         }
     }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            },
+            title = { Text("Выйти из аккаунта?", fontWeight = FontWeight.Bold) },
+            text = { Text("Вы будете перенаправлены на экран авторизации.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        accountViewModel.logout(onLogout)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Выйти")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -243,7 +285,7 @@ private fun BreederProfileForm(
         ) {
             Icon(Icons.Default.Storefront, contentDescription = null, tint = Primary)
             Text(
-                if (profile == null) "Стать заводчиком" else "Профиль заводчика",
+                if (profile == null) "Заполните профиль питомника" else "Профиль заводчика",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
             )

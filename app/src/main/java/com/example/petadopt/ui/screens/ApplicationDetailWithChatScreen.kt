@@ -23,6 +23,7 @@ import com.example.petadopt.data.model.Application
 import com.example.petadopt.data.model.Pet
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
+import com.example.petadopt.util.formatYears
 import com.example.petadopt.viewmodel.ApplicationDetailViewModel
 
 /**
@@ -153,7 +154,7 @@ private fun PetInfoCard(pet: Pet) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                InfoChip(modifier = Modifier.weight(1f), label = "Возраст", value = "${pet.age} лет")
+                InfoChip(modifier = Modifier.weight(1f), label = "Возраст", value = formatYears(pet.age))
                 InfoChip(modifier = Modifier.weight(1f), label = "Пол", value = pet.getGenderDisplay())
                 InfoChip(modifier = Modifier.weight(1f), label = "Тип", value = pet.getTypeDisplay())
             }

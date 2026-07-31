@@ -2,7 +2,10 @@ package com.example.petadopt.ui.screens
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -34,7 +42,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +61,7 @@ import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.MarketplaceViewModel
 import java.text.NumberFormat
 import java.util.Locale
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,15 +113,7 @@ fun SaleListingDetailScreen(
                         .padding(padding)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    AsyncImage(
-                        model = listing.photoUrl,
-                        contentDescription = listing.name,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(330.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentScale = ContentScale.Crop
-                    )
+                    ListingPhotoGallery(listing)
                     Column(
                         modifier = Modifier.padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -194,6 +198,89 @@ fun SaleListingDetailScreen(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ListingPhotoGallery(listing: SaleListing) {
+    val photos = remember(listing.photoUrl, listing.additionalPhotos) {
+        (listOf(listing.photoUrl) + listing.additionalPhotos)
+            .filter(String::isNotBlank)
+            .distinct()
+    }
+    val pagerState = rememberPagerState(pageCount = { photos.size })
+    val coroutineScope = rememberCoroutineScope()
+
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(330.dp)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            if (photos.isNotEmpty()) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    AsyncImage(
+                        model = photos[page],
+                        contentDescription = "${listing.name}, фото ${page + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+            if (photos.size > 1) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp),
+                    shape = RoundedCornerShape(6.dp),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                ) {
+                    Text(
+                        text = "${pagerState.currentPage + 1} / ${photos.size}",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+
+        if (photos.size > 1) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                itemsIndexed(photos) { index, photoUrl ->
+                    AsyncImage(
+                        model = photoUrl,
+                        contentDescription = "Открыть фото ${index + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(68.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(index)
+                                }
+                            }
+                            .then(
+                                if (pagerState.currentPage == index) {
+                                    Modifier.border(2.dp, Primary, RoundedCornerShape(8.dp))
+                                } else {
+                                    Modifier
+                                }
+                            )
+                    )
                 }
             }
         }

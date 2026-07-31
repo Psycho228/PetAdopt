@@ -34,20 +34,8 @@ import coil.request.ImageRequest
 import com.example.petadopt.data.model.Pet
 import com.example.petadopt.ui.components.PrimaryButton
 import com.example.petadopt.ui.theme.*
+import com.example.petadopt.util.formatYears
 import com.example.petadopt.viewmodel.SwipeViewModel
-
-// Функция для правильного склонения слова "год/года/лет"
-fun getAgeWord(age: Int): String {
-    val lastDigit = age % 10
-    val lastTwoDigits = age % 100
-    
-    return when {
-        lastTwoDigits in 11..19 -> "лет"
-        lastDigit == 1 -> "год"
-        lastDigit in 2..4 -> "года"
-        else -> "лет"
-    }
-}
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -211,7 +199,7 @@ fun DetailsScreen(
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "${p.ageYearsInt} ${getAgeWord(p.ageYearsInt)}",
+                                    text = formatYears(p.ageYearsInt),
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = FontWeight.Medium
                                 )

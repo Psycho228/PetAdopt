@@ -123,7 +123,6 @@ fun SwipeScreen(
         TopBar(
             onAccount = onAccount,
             onMatches = onMatches,
-            onMarketplace = onMarketplace,
             onLogout = { showLogoutDialog = true },
             isAuthenticated = isAuthenticated
         )
@@ -148,7 +147,7 @@ fun SwipeScreen(
                 ) { offsetX ->
                     PetCard(
                         name = currentPet.name,
-                        age = currentPet.age.toString(),
+                        age = currentPet.age,
                         description = currentPet.description,
                         imageUrl = displayImage,
                         traits = currentPet.petTraits,
@@ -160,12 +159,12 @@ fun SwipeScreen(
             }
         }
 
-        if (currentPet != null) {
-            BottomActions(
-                onDetails = { onDetails(currentPet.id) },
-                onMatches = onMatches
-            )
-        }
+        Spacer(Modifier.height(12.dp))
+        BottomActions(
+            onDetails = currentPet?.let { pet -> { onDetails(pet.id) } },
+            onMatches = onMatches,
+            onMarketplace = onMarketplace
+        )
 
         Spacer(Modifier.height(14.dp))
     }
@@ -175,22 +174,24 @@ fun SwipeScreen(
 private fun TopBar(
     onAccount: () -> Unit,
     onMatches: () -> Unit,
-    onMarketplace: () -> Unit,
     onLogout: () -> Unit,
     isAuthenticated: Boolean
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Surface(
                 shape = CircleShape,
                 color = Primary,
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
@@ -201,51 +202,59 @@ private fun TopBar(
                     )
                 }
             }
-            Spacer(Modifier.width(10.dp))
-            Column {
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Хвостики",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = TextPrimary
+                    color = TextPrimary,
+                    maxLines = 1
                 )
                 Text(
                     text = "подборка с заботой",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
+                    color = TextSecondary,
+                    maxLines = 1
                 )
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-            IconButton(onClick = onMarketplace) {
-                Icon(
-                    imageVector = Icons.Default.Storefront,
-                    contentDescription = "От заводчиков",
-                    tint = Primary
-                )
-            }
-            IconButton(onClick = onMatches) {
+        Row(
+            modifier = Modifier.width(if (isAuthenticated) 156.dp else 102.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onMatches, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = Icons.Default.Favorite,
                     contentDescription = "Избранные питомцы",
-                    tint = Secondary
+                    tint = Secondary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
-            IconButton(onClick = onAccount) {
+            IconButton(onClick = onAccount, modifier = Modifier.size(48.dp)) {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = "Профиль",
-                    tint = Primary
+                    tint = Primary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
             if (isAuthenticated) {
-                IconButton(onClick = onLogout) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
-                        contentDescription = "Выйти",
-                        tint = TextSecondary
-                    )
+                Surface(
+                    modifier = Modifier.size(48.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.75f)
+                ) {
+                    IconButton(onClick = onLogout, modifier = Modifier.fillMaxSize()) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ExitToApp,
+                            contentDescription = "Выйти",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
         }
@@ -368,38 +377,62 @@ private fun EmptyPetState(onRefresh: () -> Unit) {
 
 @Composable
 private fun BottomActions(
-    onDetails: () -> Unit,
-    onMatches: () -> Unit
+    onDetails: (() -> Unit)?,
+    onMatches: () -> Unit,
+    onMarketplace: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
     ) {
-        PrimaryButton(
-            text = "Познакомиться ближе",
-            onClick = onDetails
-        )
-
-        Spacer(Modifier.height(10.dp))
-
-        OutlinedButton(
-            onClick = onMatches,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Primary
+        onDetails?.let {
+            PrimaryButton(
+                text = "Познакомиться ближе",
+                onClick = it
             )
+            Spacer(Modifier.height(10.dp))
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text("Мои симпатии", fontWeight = FontWeight.SemiBold)
+            OutlinedButton(
+                onClick = onMatches,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Favorite,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("Симпатии", fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+
+            OutlinedButton(
+                onClick = onMarketplace,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Secondary),
+                contentPadding = PaddingValues(horizontal = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Storefront,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("От заводчиков", fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
         }
     }
 }

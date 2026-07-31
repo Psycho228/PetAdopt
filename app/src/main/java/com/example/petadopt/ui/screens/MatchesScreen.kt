@@ -28,6 +28,7 @@ import com.example.petadopt.data.model.Pet
 import com.example.petadopt.ui.theme.Like
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
+import com.example.petadopt.util.formatYears
 import com.example.petadopt.viewmodel.SwipeViewModel
 
 @Composable
@@ -182,7 +183,7 @@ private fun MatchCard(pet: Pet, onClick: () -> Unit, onRemove: () -> Unit) {
                             .padding(horizontal = 10.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "${pet.age} лет",
+                            text = formatYears(pet.age),
                             fontSize = 12.sp,
                             color = Primary,
                             fontWeight = FontWeight.SemiBold

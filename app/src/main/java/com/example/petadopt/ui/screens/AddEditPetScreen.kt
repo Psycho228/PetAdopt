@@ -30,7 +30,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,6 +37,7 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.petadopt.data.model.Pet
 import com.example.petadopt.ui.theme.Primary
+import com.example.petadopt.ui.theme.Secondary
 import com.example.petadopt.ui.theme.TextSecondary
 import com.example.petadopt.viewmodel.AdminViewModel
 import kotlinx.coroutines.delay
@@ -301,7 +301,7 @@ fun AddEditPetScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Тип — чипы с иконками
+                // Тип питомца
                 Text("Тип питомца", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -311,13 +311,13 @@ fun AddEditPetScreen(
                         Triple("bird", "Птица", Icons.Outlined.Flight),
                         Triple("other", "Другое", Icons.Outlined.MoreHoriz)
                     ).forEach { (type, label, icon) ->
-                        FilterChip(
+                        ChoiceTile(
+                            label = label,
                             selected = petType == type,
                             onClick = { petType = type },
-                            label = { Text(label, fontSize = 11.sp, textAlign = TextAlign.Center) },
-                            leadingIcon = { Icon(icon, null, modifier = Modifier.size(16.dp)) },
+                            icon = icon,
+                            vertical = true,
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp)
                         )
                     }
                 }
@@ -327,20 +327,20 @@ fun AddEditPetScreen(
                 // Пол
                 Text("Пол", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    ChoiceTile(
+                        label = "Мальчик",
                         selected = petGender == Pet.GENDER_MALE,
                         onClick = { petGender = Pet.GENDER_MALE },
-                        label = { Text("♂ Мальчик") },
-                        leadingIcon = { Icon(Icons.Outlined.Male, null, Modifier.size(16.dp)) },
-                        shape = RoundedCornerShape(10.dp)
+                        icon = Icons.Outlined.Male,
+                        modifier = Modifier.weight(1f)
                     )
-                    FilterChip(
+                    ChoiceTile(
+                        label = "Девочка",
                         selected = petGender == Pet.GENDER_FEMALE,
                         onClick = { petGender = Pet.GENDER_FEMALE },
-                        label = { Text("♀ Девочка") },
-                        leadingIcon = { Icon(Icons.Outlined.Female, null, Modifier.size(16.dp)) },
-                        shape = RoundedCornerShape(10.dp)
+                        icon = Icons.Outlined.Female,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
@@ -349,13 +349,13 @@ fun AddEditPetScreen(
                 // Размер
                 Text("Размер", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     listOf(Pet.SIZE_SMALL to "Маленький", Pet.SIZE_MEDIUM to "Средний", Pet.SIZE_LARGE to "Большой").forEach { (size, label) ->
-                        FilterChip(
+                        ChoiceTile(
+                            label = label,
                             selected = petSize == size,
                             onClick = { petSize = size },
-                            label = { Text(label) },
-                            shape = RoundedCornerShape(10.dp)
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -399,18 +399,19 @@ fun AddEditPetScreen(
                 // Уровень активности
                 Text("Уровень активности", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     listOf(
                         Triple("low", "Спокойный", Icons.Outlined.SelfImprovement),
                         Triple("medium", "Умеренный", Icons.Outlined.DirectionsWalk),
                         Triple("high", "Энергичный", Icons.Outlined.Bolt)
                     ).forEach { (level, label, icon) ->
-                        FilterChip(
+                        ChoiceTile(
+                            label = label,
                             selected = petEnergyLevel == level,
                             onClick = { petEnergyLevel = level },
-                            label = { Text(label, fontSize = 12.sp) },
-                            leadingIcon = { Icon(icon, null, Modifier.size(16.dp)) },
-                            shape = RoundedCornerShape(10.dp)
+                            icon = icon,
+                            vertical = true,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -421,15 +422,12 @@ fun AddEditPetScreen(
 
                 Spacer(Modifier.height(8.dp))
 
-                // Чекбоксы в 2 колонки
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        SwitchRow("Приучен", isHouseTrained, Icons.Outlined.House) { isHouseTrained = it }
-                        SwitchRow("Ладит с детьми", goodWithKids, Icons.Outlined.ChildCare) { goodWithKids = it }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        SwitchRow("Ладит с животными", goodWithPets, Icons.Outlined.Groups) { goodWithPets = it }
-                    }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    SwitchRow("Приучен к дому", isHouseTrained, Icons.Outlined.House) { isHouseTrained = it }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    SwitchRow("Ладит с детьми", goodWithKids, Icons.Outlined.ChildCare) { goodWithKids = it }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    SwitchRow("Ладит с животными", goodWithPets, Icons.Outlined.Groups) { goodWithPets = it }
                 }
             }
 
@@ -445,13 +443,10 @@ fun AddEditPetScreen(
 
                 Spacer(Modifier.height(12.dp))
 
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        SwitchRow("Вакцинирован", isVaccinated, Icons.Outlined.Vaccines) { isVaccinated = it }
-                    }
-                    Column(modifier = Modifier.weight(1f)) {
-                        SwitchRow("Стерилизован", isSterilized, Icons.Outlined.FavoriteBorder) { isSterilized = it }
-                    }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    SwitchRow("Вакцинирован", isVaccinated, Icons.Outlined.Vaccines) { isVaccinated = it }
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
+                    SwitchRow("Стерилизован", isSterilized, Icons.Outlined.FavoriteBorder) { isSterilized = it }
                 }
             }
 
@@ -778,6 +773,78 @@ private fun SectionHeader(
         Column {
             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        }
+    }
+}
+
+// ===================== CHOICE TILE =====================
+@Composable
+private fun ChoiceTile(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    vertical: Boolean = false
+) {
+    val shape = RoundedCornerShape(10.dp)
+    Surface(
+        modifier = modifier.height(if (vertical) 64.dp else 48.dp),
+        shape = shape,
+        color = if (selected) Secondary.copy(alpha = 0.22f) else Color.Transparent,
+        border = BorderStroke(
+            1.dp,
+            if (selected) Secondary.copy(alpha = 0.7f) else MaterialTheme.colorScheme.outlineVariant
+        )
+    ) {
+        val contentModifier = Modifier
+            .fillMaxSize()
+            .clickable(onClick = onClick)
+
+        if (vertical) {
+            Column(
+                modifier = contentModifier,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                icon?.let {
+                    Icon(
+                        imageVector = it,
+                        contentDescription = null,
+                        tint = if (selected) Primary else TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1
+                )
+            }
+        } else {
+            Row(
+                modifier = contentModifier.padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                icon?.let {
+                    Icon(
+                        imageVector = it,
+                        contentDescription = null,
+                        tint = if (selected) Primary else TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    maxLines = 1
+                )
+            }
         }
     }
 }

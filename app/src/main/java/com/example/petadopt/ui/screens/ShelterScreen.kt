@@ -34,6 +34,7 @@ import coil.compose.AsyncImage
 import com.example.petadopt.data.model.Pet
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.TextSecondary
+import com.example.petadopt.util.formatYears
 import com.example.petadopt.viewmodel.AccountViewModel
 import com.example.petadopt.viewmodel.AdminViewModel
 
@@ -632,7 +633,7 @@ private fun ShelterPetCard(
                                 color = if (pet.is_active) Color.White else TextSecondary
                             )
                             Text(
-                                text = "${pet.getTypeDisplay()} • ${pet.age} лет",
+                                text = "${pet.getTypeDisplay()} • ${formatYears(pet.age)}",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = if (pet.is_active) Color.White.copy(alpha = 0.9f) else TextSecondary.copy(alpha = 0.7f)
                             )

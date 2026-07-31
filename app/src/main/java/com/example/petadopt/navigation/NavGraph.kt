@@ -89,6 +89,12 @@ fun NavGraph() {
                         }
                     }
                 },
+                onBreederAuthSuccess = {
+                    navController.navigate("breeder_cabinet") {
+                        popUpTo(backStackEntry.destination.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 initialIsRegister = register,
                 reason = if (register) {
                     "Создайте аккаунт или войдите, чтобы отправить заявку в приют"
@@ -275,9 +281,10 @@ fun NavGraph() {
 
         composable("breeder_cabinet") {
             BreederCabinetScreen(
-                onBack = {
-                    if (!navController.popBackStack()) {
-                        navController.navigate("marketplace")
+                onLogout = {
+                    navController.navigate("auth") {
+                        popUpTo(0) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 onAddListing = { navController.navigate("breeder_listing/new") },

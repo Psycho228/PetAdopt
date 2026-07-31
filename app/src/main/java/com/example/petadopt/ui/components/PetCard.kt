@@ -39,12 +39,13 @@ import com.example.petadopt.ui.theme.Dislike
 import com.example.petadopt.ui.theme.Like
 import com.example.petadopt.ui.theme.Primary
 import com.example.petadopt.ui.theme.Secondary
+import com.example.petadopt.util.formatYears
 import kotlin.math.abs
 
 @Composable
 fun PetCard(
     name: String,
-    age: String,
+    age: Int,
     description: String,
     imageUrl: String,
     traits: List<String> = emptyList(),
@@ -146,7 +147,7 @@ fun PetCard(
                     modifier = Modifier.padding(bottom = 2.dp)
                 ) {
                     Text(
-                        text = "$age лет",
+                        text = formatYears(age),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
