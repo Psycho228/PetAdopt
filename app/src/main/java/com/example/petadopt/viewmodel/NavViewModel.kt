@@ -119,6 +119,11 @@ class NavViewModel @Inject constructor(
         }
     }
 
+    suspend fun getPostLoginRoute(): String = when (val route = getAccountRoute()) {
+        "account" -> "swipe"
+        else -> route
+    }
+
     private suspend fun isBreederAccount(user: User): Boolean {
         if (user.isBreeder()) return true
 

@@ -58,7 +58,13 @@ fun NavGraph() {
         }
     }
 
-    fun openAccount() = openProtected("account_entry")
+    fun openAccount() {
+        if (navViewModel.isAuthenticated()) {
+            navController.navigate("account_entry")
+        } else {
+            openAuth(returnTo = "post_login")
+        }
+    }
 
     NavHost(navController, startDestination = "loading") {
 
@@ -91,7 +97,7 @@ fun NavGraph() {
                 },
                 onBreederAuthSuccess = {
                     navController.navigate("breeder_cabinet") {
-                        popUpTo(backStackEntry.destination.id) { inclusive = true }
+                        popUpTo(0) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
@@ -241,7 +247,25 @@ fun NavGraph() {
             LaunchedEffect(Unit) {
                 val route = navViewModel.getAccountRoute()
                 navController.navigate(route) {
-                    popUpTo("account_entry") { inclusive = true }
+                    if (route == "shelter" || route == "breeder_cabinet") {
+                        popUpTo(0) { inclusive = true }
+                    } else {
+                        popUpTo("account_entry") { inclusive = true }
+                    }
+                    launchSingleTop = true
+                }
+            }
+
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+
+        composable("post_login") {
+            LaunchedEffect(Unit) {
+                val route = navViewModel.getPostLoginRoute()
+                navController.navigate(route) {
+                    popUpTo(0) { inclusive = true }
                     launchSingleTop = true
                 }
             }
